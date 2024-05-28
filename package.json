@@ -1,0 +1,19 @@
+{
+  "name": "block-map-editor",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build --outDir ../dist"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "lil-gui": "^0.19.2",
+    "three": "^0.164.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.164.0",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11"
+  }
+}
