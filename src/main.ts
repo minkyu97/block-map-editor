@@ -11,6 +11,7 @@ import { OrthographicView, PerspectiveView } from "./utils/View";
  */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xaaaaaa);
+const centerOfScene = new THREE.Vector3(-0.5, -0.5, -0.5);
 
 /**
  * RENDERER
@@ -25,15 +26,17 @@ renderer.setClearColor(0x000000, 1);
  * VIEWS
  */
 const mainView = new PerspectiveView({ x: 0, y: 0.5, width: 1, height: 0.5 });
-mainView.camera.position.z = 5;
-mainView.camera.position.y = 2;
+mainView.camera.position.set(0, 2, 5);
+mainView.camera.position.add(centerOfScene);
 
 const zView = new OrthographicView({ x: 0, y: 0, width: 0.5, height: 0.5 }, { height: 5 });
-zView.camera.position.z = 5;
+zView.camera.position.copy(centerOfScene);
+zView.camera.position.z += 10;
 
 const xView = new OrthographicView({ x: 0.5, y: 0, width: 0.5, height: 0.5 }, { height: 5 });
-xView.camera.position.x = 5;
-xView.camera.lookAt(0, 0, 0);
+xView.camera.position.copy(centerOfScene);
+xView.camera.position.x += 10;
+xView.camera.lookAt(centerOfScene);
 
 const views = [mainView, zView, xView];
 
@@ -44,6 +47,8 @@ for (const view of views) {
  * CONTROLS
  */
 const orbitControls = new OrbitControls(mainView.camera, renderer.domElement);
+orbitControls.target.copy(centerOfScene);
+orbitControls.update();
 const transformControls = new TransformControls(mainView.camera, renderer.domElement);
 // @ts-ignore
 // for supporting the custom viewport
@@ -73,8 +78,21 @@ scene.add(ambientLight);
 /**
  * AXES HELPER
  */
-const axesHelper = new THREE.AxesHelper(5);
-axesHelper.position.y = 0.1;
+const axesHelper = new THREE.Group();
+const axes = [
+  new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 5, 10), new THREE.MeshBasicMaterial({ color: 0xff0000 })),
+  new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 5, 10), new THREE.MeshBasicMaterial({ color: 0x00ff00 })),
+  new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 5, 10), new THREE.MeshBasicMaterial({ color: 0x0000ff })),
+];
+axes.forEach((axis, index) => {
+  axis.position.copy(centerOfScene);
+  axis.position.add(new THREE.Vector3(index === 2 ? 2.5 : 0, index === 1 ? 2.5 : 0, index === 0 ? 2.5 : 0));
+  axis.quaternion.setFromAxisAngle(
+    new THREE.Vector3(index === 0 ? 1 : 0, index === 1 ? 1 : 0, index === 2 ? 1 : 0),
+    Math.PI / 2,
+  );
+  axesHelper.add(axis);
+});
 scene.add(axesHelper);
 
 /**
@@ -87,21 +105,23 @@ scene.add(cameraHelper);
  * GRID
  */
 const gridHelper = new THREE.GridHelper(10, 10);
+gridHelper.position.copy(centerOfScene);
 scene.add(gridHelper);
-const gridElements: THREE.Object3D[] = [];
+const grid = new THREE.Group();
 for (let i = -4.5; i < 5.5; i++) {
   for (let j = -4.5; j < 5.5; j++) {
-    const grid = new THREE.Mesh(
+    const gridElement = new THREE.Mesh(
       new THREE.PlaneGeometry(1, 1),
       new THREE.MeshBasicMaterial({ opacity: 0, transparent: true }),
     );
-    grid.rotation.x = -Math.PI / 2;
-    grid.position.set(i, 0, j);
-    grid.name = `grid-${i}-${j}`;
-    gridElements.push(grid);
-    scene.add(grid);
+    gridElement.rotation.x = -Math.PI / 2;
+    gridElement.position.set(i, 0, j);
+    gridElement.position.add(centerOfScene);
+    gridElement.name = `grid-${i}-${j}`;
+    grid.add(gridElement);
   }
 }
+scene.add(grid);
 
 /**
  * BLOCK
@@ -126,7 +146,7 @@ const history = new ActionHistory();
  * RAYCASTER & MOUSE
  */
 const pointer = mainView.pointer;
-pointer.registerAll(gridElements);
+pointer.registerAll(grid.children);
 
 let clicked = false;
 let rClicked = false;
