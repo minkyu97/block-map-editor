@@ -34,9 +34,7 @@ export default class Pointer {
     this.traceObjects.splice(0);
   }
 
-  remove<T extends number | string | THREE.Object3D>(
-    target: T
-  ): THREE.Object3D | undefined {
+  remove<T extends number | string | THREE.Object3D>(target: T): THREE.Object3D | undefined {
     if (typeof target === "number") {
       const index = target;
       if (index < 0 || index >= this.traceObjects.length) return;
@@ -45,8 +43,7 @@ export default class Pointer {
       this.traceObjects.splice(index, 1);
       return object;
     } else {
-      const key =
-        typeof target === "string" ? target : target.name || target.uuid;
+      const key = typeof target === "string" ? target : target.name || target.uuid;
       const object = this.traceObjectMap.get(key);
       if (object === undefined) return;
       this.traceObjectMap.delete(key);
@@ -54,9 +51,7 @@ export default class Pointer {
     }
   }
 
-  removeAll<T extends number | string | THREE.Object3D>(
-    targets: T[]
-  ): THREE.Object3D[] {
+  removeAll<T extends number | string | THREE.Object3D>(targets: T[]): THREE.Object3D[] {
     if (targets.length === 0) {
       return [];
     }

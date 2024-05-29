@@ -3,7 +3,6 @@ import { OrbitControls } from "three/examples/jsm/Addons.js";
 import Action from "./utils/Action";
 import ActionHistory from "./utils/ActionHistory";
 import KeyMap, { Modifiers } from "./utils/KeyMap";
-import Pointer from "./utils/Pointer";
 import { OrthographicView, PerspectiveView } from "./utils/View";
 
 /**
@@ -28,16 +27,10 @@ const mainView = new PerspectiveView({ x: 0, y: 0.5, width: 1, height: 0.5 });
 mainView.camera.position.z = 5;
 mainView.camera.position.y = 2;
 
-const zView = new OrthographicView(
-  { x: 0, y: 0, width: 0.5, height: 0.5 },
-  { height: 5 }
-);
+const zView = new OrthographicView({ x: 0, y: 0, width: 0.5, height: 0.5 }, { height: 5 });
 zView.camera.position.z = 5;
 
-const xView = new OrthographicView(
-  { x: 0.5, y: 0, width: 0.5, height: 0.5 },
-  { height: 5 }
-);
+const xView = new OrthographicView({ x: 0.5, y: 0, width: 0.5, height: 0.5 }, { height: 5 });
 xView.camera.position.x = 5;
 xView.camera.lookAt(0, 0, 0);
 
@@ -83,7 +76,7 @@ for (let i = -4.5; i < 5.5; i++) {
   for (let j = -4.5; j < 5.5; j++) {
     const grid = new THREE.Mesh(
       new THREE.PlaneGeometry(1, 1),
-      new THREE.MeshBasicMaterial({ opacity: 0, transparent: true })
+      new THREE.MeshBasicMaterial({ opacity: 0, transparent: true }),
     );
     grid.rotation.x = -Math.PI / 2;
     grid.position.set(i, 0, j);
@@ -102,7 +95,7 @@ const blockWhenClicked = new THREE.Mesh(
     color: 0xff0000,
     opacity: 0.5,
     transparent: true,
-  })
+  }),
 );
 blockWhenClicked.position.set(0, 0.5, 0);
 scene.add(blockWhenClicked);
@@ -115,26 +108,20 @@ const history = new ActionHistory();
 /**
  * RAYCASTER & MOUSE
  */
-const pointer = new Pointer(mainView.camera);
+const pointer = mainView.pointer;
 pointer.registerAll(gridElements);
 
 let clicked = false;
 let rClicked = false;
 
 window.addEventListener("mousemove", (event) => {
-  const viewportX = window.innerWidth * mainView.viewport.x;
-  const viewportY = window.innerHeight * mainView.viewport.y;
-  const viewportWidth = window.innerWidth * mainView.viewport.width;
-  const viewportHeight = window.innerHeight * mainView.viewport.height;
-  const absoluteX = event.clientX;
-  const absoluteY = window.innerHeight - event.clientY;
-  const relativeX = absoluteX - viewportX;
-  const relativeY = absoluteY - viewportY;
-  const normalizedX = relativeX / viewportWidth;
-  const normalizedY = relativeY / viewportHeight;
-  pointer.position.x = normalizedX * 2 - 1;
-  pointer.position.y = normalizedY * 2 - 1;
-
+  const mouseX = event.clientX;
+  const mouseY = window.innerHeight - event.clientY;
+  for (const view of views) {
+    if (mouseX < view.realViewport.x || mouseX > view.realViewport.x + view.realViewport.width) continue;
+    if (mouseY < view.realViewport.y || mouseY > view.realViewport.y + view.realViewport.height) continue;
+    view.onMouseMove(mouseX, mouseY);
+  }
   clicked = false;
   rClicked = false;
 });
@@ -143,9 +130,7 @@ window.addEventListener("mousedown", (event) => {
   else if (event.button === 2) rClicked = true;
 });
 
-let selectedBlock:
-  | THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>
-  | undefined;
+let selectedBlock: THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial> | undefined;
 
 function unselectBlock() {
   if (selectedBlock === undefined) return;
@@ -153,9 +138,7 @@ function unselectBlock() {
   selectedBlock = undefined;
 }
 
-function selectBlock(
-  block: THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>
-) {
+function selectBlock(block: THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>) {
   block.material.color.set(0x0000ff);
   selectedBlock = block;
 }
@@ -168,9 +151,7 @@ function handleClick() {
       return;
     }
     if (selectedBlock) unselectBlock();
-    selectBlock(
-      object as THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>
-    );
+    selectBlock(object as THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>);
   }
 }
 
@@ -186,8 +167,8 @@ function handleRightClick() {
         () => {
           pointer.register(object);
           scene.add(object);
-        }
-      )
+        },
+      ),
     );
   }
 }
@@ -204,10 +185,7 @@ window.addEventListener("mouseup", () => {
  */
 
 function handleSpacebar() {
-  const newBlock = new THREE.Mesh(
-    new THREE.BoxGeometry(1, 1, 1),
-    new THREE.MeshStandardMaterial({ color: 0x00ff00 })
-  );
+  const newBlock = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x00ff00 }));
   newBlock.position.copy(blockWhenClicked.position);
   newBlock.name = `block-${newBlock.uuid}`;
 
@@ -220,8 +198,8 @@ function handleSpacebar() {
       () => {
         pointer.remove(newBlock);
         newBlock.removeFromParent();
-      }
-    )
+      },
+    ),
   );
 }
 
@@ -239,8 +217,8 @@ function shiftSelectedBlock(offset: THREE.Vector3) {
       },
       () => {
         selectedBlock!.position.copy(prevPosition);
-      }
-    )
+      },
+    ),
   );
 }
 
@@ -248,21 +226,11 @@ const keyMap = KeyMap.getInstance();
 keyMap.bind(Modifiers.NONE, "Space", handleSpacebar);
 keyMap.bind(Modifiers.META, "KeyZ", () => history.undo());
 keyMap.bind(Modifiers.META | Modifiers.SHIFT, "KeyZ", () => history.redo());
-keyMap.bind(Modifiers.NONE, "ArrowUp", () =>
-  shiftSelectedBlock(new THREE.Vector3(0, 0, -1))
-);
-keyMap.bind(Modifiers.NONE, "ArrowDown", () =>
-  shiftSelectedBlock(new THREE.Vector3(0, 0, 1))
-);
-keyMap.bind(Modifiers.NONE, "ArrowLeft", () =>
-  shiftSelectedBlock(new THREE.Vector3(-1, 0, 0))
-);
-keyMap.bind(Modifiers.NONE, "ArrowRight", () =>
-  shiftSelectedBlock(new THREE.Vector3(1, 0, 0))
-);
-keyMap.bind(Modifiers.NONE, "Comma", () =>
-  shiftSelectedBlock(new THREE.Vector3(0, 1, 0))
-);
+keyMap.bind(Modifiers.NONE, "ArrowUp", () => shiftSelectedBlock(new THREE.Vector3(0, 0, -1)));
+keyMap.bind(Modifiers.NONE, "ArrowDown", () => shiftSelectedBlock(new THREE.Vector3(0, 0, 1)));
+keyMap.bind(Modifiers.NONE, "ArrowLeft", () => shiftSelectedBlock(new THREE.Vector3(-1, 0, 0)));
+keyMap.bind(Modifiers.NONE, "ArrowRight", () => shiftSelectedBlock(new THREE.Vector3(1, 0, 0)));
+keyMap.bind(Modifiers.NONE, "Comma", () => shiftSelectedBlock(new THREE.Vector3(0, 1, 0)));
 
 /**
  * ANIMATION
@@ -286,13 +254,13 @@ requestAnimationFrame(function animate(time) {
       view.viewport.x * window.innerWidth,
       view.viewport.y * window.innerHeight,
       view.viewport.width * window.innerWidth,
-      view.viewport.height * window.innerHeight
+      view.viewport.height * window.innerHeight,
     );
     renderer.setScissor(
       view.viewport.x * window.innerWidth,
       view.viewport.y * window.innerHeight,
       view.viewport.width * window.innerWidth,
-      view.viewport.height * window.innerHeight
+      view.viewport.height * window.innerHeight,
     );
     renderer.clearColor();
     renderer.render(scene, view.camera);

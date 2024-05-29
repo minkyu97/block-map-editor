@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import Pointer from "./Pointer";
 
 type ViewPort = { x: number; y: number; width: number; height: number };
 
@@ -6,7 +7,9 @@ export interface View {
   readonly camera: THREE.Camera;
   readonly viewport: ViewPort;
   readonly realViewport: ViewPort;
+  readonly pointer: Pointer;
   onResize(width: number, height: number): void;
+  onMouseMove(mouseX: number, mouseY: number): void;
 }
 
 type PerspectiveCameraOptions = {
@@ -19,11 +22,9 @@ export class PerspectiveView implements View {
   readonly camera: THREE.PerspectiveCamera;
   readonly viewport: ViewPort;
   readonly realViewport: ViewPort;
+  readonly pointer: Pointer;
 
-  constructor(
-    viewport: ViewPort,
-    { fov = 75, near = 0.1, far = 1000 }: PerspectiveCameraOptions = {}
-  ) {
+  constructor(viewport: ViewPort, { fov = 75, near = 0.1, far = 1000 }: PerspectiveCameraOptions = {}) {
     this.viewport = viewport;
     this.realViewport = {
       x: viewport.x * window.innerWidth,
@@ -33,6 +34,7 @@ export class PerspectiveView implements View {
     };
     const aspect = this.realViewport.width / this.realViewport.height;
     this.camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+    this.pointer = new Pointer(this.camera);
   }
 
   onResize(width: number, height: number) {
@@ -42,6 +44,12 @@ export class PerspectiveView implements View {
     this.realViewport.height = this.viewport.height * height;
     this.camera.aspect = this.realViewport.width / this.realViewport.height;
     this.camera.updateProjectionMatrix();
+  }
+
+  onMouseMove(mouseX: number, mouseY: number) {
+    const { x, y, width, height } = this.realViewport;
+    this.pointer.position.x = ((mouseX - x) / width) * 2 - 1;
+    this.pointer.position.y = ((mouseY - y) / height) * 2 - 1;
   }
 }
 
@@ -56,11 +64,9 @@ export class OrthographicView implements View {
   readonly viewport: ViewPort;
   readonly realViewport: ViewPort;
   readonly height: number;
+  readonly pointer: Pointer;
 
-  constructor(
-    viewport: ViewPort,
-    { near = 0.1, far = 1000, height = 2 }: OrthographicCameraOptions = {}
-  ) {
+  constructor(viewport: ViewPort, { near = 0.1, far = 1000, height = 2 }: OrthographicCameraOptions = {}) {
     this.viewport = viewport;
     this.realViewport = {
       x: viewport.x * window.innerWidth,
@@ -70,14 +76,8 @@ export class OrthographicView implements View {
     };
     const aspect = this.realViewport.width / this.realViewport.height;
     this.height = height;
-    this.camera = new THREE.OrthographicCamera(
-      -height * aspect,
-      height * aspect,
-      height,
-      -height,
-      near,
-      far
-    );
+    this.camera = new THREE.OrthographicCamera(-height * aspect, height * aspect, height, -height, near, far);
+    this.pointer = new Pointer(this.camera);
   }
 
   onResize(width: number, height: number) {
@@ -89,5 +89,11 @@ export class OrthographicView implements View {
     this.camera.left = -this.height * aspect;
     this.camera.right = this.height * aspect;
     this.camera.updateProjectionMatrix();
+  }
+
+  onMouseMove(mouseX: number, mouseY: number) {
+    const { x, y, width, height } = this.realViewport;
+    this.pointer.position.x = ((mouseX - x) / width) * 2 - 1;
+    this.pointer.position.y = ((mouseY - y) / height) * 2 - 1;
   }
 }
