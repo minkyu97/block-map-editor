@@ -150,10 +150,8 @@ const history = new ActionHistory();
 const pointer = mainView.pointer;
 pointer.registerAll(grid.children);
 
-let clicked = false;
-let rClicked = false;
-
-window.addEventListener("mousemove", (event) => {
+let drag = false;
+window.addEventListener("pointermove", (event) => {
   const mouseX = event.clientX;
   const mouseY = window.innerHeight - event.clientY;
   for (const view of views) {
@@ -161,12 +159,7 @@ window.addEventListener("mousemove", (event) => {
     if (mouseY < view.realViewport.y || mouseY > view.realViewport.y + view.realViewport.height) continue;
     view.onMouseMove(mouseX, mouseY);
   }
-  clicked = false;
-  rClicked = false;
-});
-window.addEventListener("mousedown", (event) => {
-  if (event.button === 0) clicked = true;
-  else if (event.button === 2) rClicked = true;
+  drag = event.buttons === 1;
 });
 
 let selectedBlock: THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial> | undefined;
@@ -206,6 +199,9 @@ function handleRightClick() {
     history.do(
       new Action(
         () => {
+          if (selectedBlock === object) {
+            unselectBlock();
+          }
           pointer.remove(object);
           object.removeFromParent();
         },
@@ -218,11 +214,15 @@ function handleRightClick() {
   }
 }
 
-window.addEventListener("mouseup", () => {
-  if (clicked) handleClick();
-  if (rClicked) handleRightClick();
-  clicked = false;
-  rClicked = false;
+window.addEventListener("pointerup", (e) => {
+  if (!drag) {
+    // non-dragging click
+    if (e.button === 0) handleClick();
+    if (e.button === 2) handleRightClick();
+  } else {
+    // dragging end
+    drag = false;
+  }
 });
 
 /**
@@ -242,6 +242,9 @@ function handleSpacebar() {
         sharedScene.add(newBlock);
       },
       () => {
+        if (selectedBlock === newBlock) {
+          unselectBlock();
+        }
         pointer.remove(newBlock);
         newBlock.removeFromParent();
       },
