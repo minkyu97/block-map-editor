@@ -1,6 +1,6 @@
 import * as dat from "lil-gui";
 import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/Addons.js";
+import { OrbitControls, TransformControls } from "three/examples/jsm/Addons.js";
 import Action from "./utils/Action";
 import ActionHistory from "./utils/ActionHistory";
 import KeyMap, { Modifiers } from "./utils/KeyMap";
@@ -43,7 +43,23 @@ for (const view of views) {
 /**
  * CONTROLS
  */
-const controls = new OrbitControls(mainView.camera, renderer.domElement);
+const orbitControls = new OrbitControls(mainView.camera, renderer.domElement);
+const transformControls = new TransformControls(mainView.camera, renderer.domElement);
+// @ts-ignore
+// for supporting the custom viewport
+transformControls._getPointer = function (event) {
+  return {
+    x: mainView.pointer.position.x,
+    y: mainView.pointer.position.y,
+    button: event.button,
+  };
+}.bind(transformControls);
+transformControls.setMode("translate");
+transformControls.setTranslationSnap(1);
+transformControls.addEventListener("dragging-changed", ({ value }) => {
+  if (value) orbitControls.enabled = false;
+  else orbitControls.enabled = true;
+});
 
 /**
  * LIGHT
@@ -137,11 +153,15 @@ function unselectBlock() {
   if (selectedBlock === undefined) return;
   selectedBlock.material.color.set(0x00ff00);
   selectedBlock = undefined;
+  transformControls.detach();
+  scene.remove(transformControls);
 }
 
 function selectBlock(block: THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>) {
   block.material.color.set(0x0000ff);
   selectedBlock = block;
+  transformControls.attach(block);
+  scene.add(transformControls);
 }
 
 function handleClick() {
