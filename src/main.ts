@@ -126,7 +126,7 @@ scene.add(grid);
 /**
  * BLOCK
  */
-const blockWhenClicked = new THREE.Mesh(
+const expectedBlock = new THREE.Mesh(
   new THREE.BoxGeometry(1, 1, 1),
   new THREE.MeshStandardMaterial({
     color: 0xff0000,
@@ -134,8 +134,8 @@ const blockWhenClicked = new THREE.Mesh(
     transparent: true,
   }),
 );
-blockWhenClicked.position.set(0, 0.5, 0);
-scene.add(blockWhenClicked);
+expectedBlock.position.set(0, 0.5, 0);
+scene.add(expectedBlock);
 
 /**
  * HISTORY
@@ -175,6 +175,7 @@ function unselectBlock() {
   selectedBlock = undefined;
   transformControls.detach();
   scene.remove(transformControls);
+  expectedBlock.visible = true;
 }
 
 function selectBlock(block: THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>) {
@@ -182,6 +183,7 @@ function selectBlock(block: THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMate
   selectedBlock = block;
   transformControls.attach(block);
   scene.add(transformControls);
+  expectedBlock.visible = false;
 }
 
 function handleClick() {
@@ -226,8 +228,9 @@ window.addEventListener("mouseup", () => {
  */
 
 function handleSpacebar() {
+  if (!expectedBlock.visible) return;
   const newBlock = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x00ff00 }));
-  newBlock.position.copy(blockWhenClicked.position);
+  newBlock.position.copy(expectedBlock.position);
   newBlock.name = `block-${newBlock.uuid}`;
 
   history.do(
@@ -282,12 +285,12 @@ requestAnimationFrame(function animate(time) {
 
   const intersect = pointer.intersectObject();
   if (intersect) {
-    blockWhenClicked.position.copy(intersect.object.position);
+    expectedBlock.position.copy(intersect.object.position);
     if (intersect.object.name.startsWith("grid")) {
-      blockWhenClicked.position.y += 0.5;
+      expectedBlock.position.y += 0.5;
     }
     if (intersect.object.name.startsWith("block")) {
-      blockWhenClicked.position.add(intersect.face!.normal);
+      expectedBlock.position.add(intersect.face!.normal);
     }
   }
 
