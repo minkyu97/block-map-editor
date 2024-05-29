@@ -9,8 +9,8 @@ import { OrthographicView, PerspectiveView } from "./utils/View";
 /**
  * SCENE
  */
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xaaaaaa);
+const sharedScene = new THREE.Scene();
+sharedScene.background = new THREE.Color(0xaaaaaa);
 const centerOfScene = new THREE.Vector3(-0.5, -0.5, -0.5);
 
 /**
@@ -41,6 +41,7 @@ xView.camera.lookAt(centerOfScene);
 const views = [mainView, zView, xView];
 
 for (const view of views) {
+  view.scene.background = new THREE.Color(0xaaaaaa);
 }
 
 /**
@@ -50,6 +51,7 @@ const orbitControls = new OrbitControls(mainView.camera, renderer.domElement);
 orbitControls.target.copy(centerOfScene);
 orbitControls.update();
 const transformControls = new TransformControls(mainView.camera, renderer.domElement);
+mainView.scene.add(transformControls);
 // @ts-ignore
 // for supporting the custom viewport
 transformControls._getPointer = function (event) {
@@ -71,9 +73,9 @@ transformControls.addEventListener("dragging-changed", ({ value }) => {
  */
 const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(1, 1, 1);
-scene.add(light);
+sharedScene.add(light);
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-scene.add(ambientLight);
+sharedScene.add(ambientLight);
 
 /**
  * AXES HELPER
@@ -93,20 +95,20 @@ axes.forEach((axis, index) => {
   );
   axesHelper.add(axis);
 });
-scene.add(axesHelper);
+sharedScene.add(axesHelper);
 
 /**
  * CAMERA HELPER
  */
 const cameraHelper = new THREE.CameraHelper(mainView.camera);
-scene.add(cameraHelper);
+sharedScene.add(cameraHelper);
 
 /**
  * GRID
  */
 const gridHelper = new THREE.GridHelper(10, 10);
 gridHelper.position.copy(centerOfScene);
-scene.add(gridHelper);
+sharedScene.add(gridHelper);
 const grid = new THREE.Group();
 for (let i = -4.5; i < 5.5; i++) {
   for (let j = -4.5; j < 5.5; j++) {
@@ -121,7 +123,7 @@ for (let i = -4.5; i < 5.5; i++) {
     grid.add(gridElement);
   }
 }
-scene.add(grid);
+sharedScene.add(grid);
 
 /**
  * BLOCK
@@ -135,7 +137,7 @@ const expectedBlock = new THREE.Mesh(
   }),
 );
 expectedBlock.position.set(0, 0.5, 0);
-scene.add(expectedBlock);
+sharedScene.add(expectedBlock);
 
 /**
  * HISTORY
@@ -174,7 +176,7 @@ function unselectBlock() {
   selectedBlock.material.color.set(0x00ff00);
   selectedBlock = undefined;
   transformControls.detach();
-  scene.remove(transformControls);
+  transformControls.visible = false;
   expectedBlock.visible = true;
 }
 
@@ -182,7 +184,7 @@ function selectBlock(block: THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMate
   block.material.color.set(0x0000ff);
   selectedBlock = block;
   transformControls.attach(block);
-  scene.add(transformControls);
+  transformControls.visible = true;
   expectedBlock.visible = false;
 }
 
@@ -209,7 +211,7 @@ function handleRightClick() {
         },
         () => {
           pointer.register(object);
-          scene.add(object);
+          sharedScene.add(object);
         },
       ),
     );
@@ -237,7 +239,7 @@ function handleSpacebar() {
     new Action(
       () => {
         pointer.register(newBlock);
-        scene.add(newBlock);
+        sharedScene.add(newBlock);
       },
       () => {
         pointer.remove(newBlock);
@@ -294,7 +296,7 @@ requestAnimationFrame(function animate(time) {
     }
   }
 
-  for (const view of views) {
+  views.forEach((view, index) => {
     renderer.setViewport(
       view.viewport.x * window.innerWidth,
       view.viewport.y * window.innerHeight,
@@ -308,8 +310,9 @@ requestAnimationFrame(function animate(time) {
       view.viewport.height * window.innerHeight,
     );
     renderer.clearColor();
-    renderer.render(scene, view.camera);
-  }
+    view.scene.add(sharedScene);
+    renderer.render(view.scene, view.camera);
+  });
 });
 
 window.addEventListener("resize", () => {
