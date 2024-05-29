@@ -1,3 +1,4 @@
+import * as dat from "lil-gui";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
 import Action from "./utils/Action";
@@ -276,3 +277,22 @@ window.addEventListener("resize", () => {
     view.onResize(width, height);
   }
 });
+
+/**
+ * GUI
+ */
+const gui = new dat.GUI();
+const helperFolder = gui.addFolder("Helpers");
+helperFolder.add(cameraHelper, "visible").name("Camera");
+helperFolder.add(axesHelper, "visible").name("Axes");
+const helpText = document.getElementById("help")!;
+helpText.style.display = "block";
+const helpTextManager = {
+  get visible() {
+    return helpText.style.display === "block";
+  },
+  set visible(value) {
+    helpText.style.display = value ? "block" : "none";
+  },
+};
+helperFolder.add(helpTextManager, "visible").name("Help Text");
