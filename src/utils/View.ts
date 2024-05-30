@@ -4,7 +4,6 @@ import Pointer from "./Pointer";
 type ViewPort = { x: number; y: number; width: number; height: number };
 
 export interface View {
-  readonly scene: THREE.Scene;
   readonly camera: THREE.Camera;
   readonly viewport: ViewPort;
   readonly realViewport: ViewPort;
@@ -20,14 +19,12 @@ type PerspectiveCameraOptions = {
 };
 
 export class PerspectiveView implements View {
-  readonly scene: THREE.Scene;
   readonly camera: THREE.PerspectiveCamera;
   readonly viewport: ViewPort;
   readonly realViewport: ViewPort;
   readonly pointer: Pointer;
 
   constructor(viewport: ViewPort, { fov = 75, near = 0.1, far = 1000 }: PerspectiveCameraOptions = {}) {
-    this.scene = new THREE.Scene();
     this.viewport = viewport;
     this.realViewport = {
       x: viewport.x * window.innerWidth,
@@ -63,7 +60,6 @@ type OrthographicCameraOptions = {
 };
 
 export class OrthographicView implements View {
-  readonly scene: THREE.Scene;
   readonly camera: THREE.OrthographicCamera;
   readonly viewport: ViewPort;
   readonly realViewport: ViewPort;
@@ -71,7 +67,6 @@ export class OrthographicView implements View {
   readonly pointer: Pointer;
 
   constructor(viewport: ViewPort, { near = 0.1, far = 1000, height = 2 }: OrthographicCameraOptions = {}) {
-    this.scene = new THREE.Scene();
     this.viewport = viewport;
     this.realViewport = {
       x: viewport.x * window.innerWidth,

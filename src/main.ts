@@ -9,8 +9,8 @@ import { OrthographicView, PerspectiveView } from "./utils/View";
 /**
  * SCENE
  */
-const sharedScene = new THREE.Scene();
-sharedScene.background = new THREE.Color(0xaaaaaa);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xaaaaaa);
 const centerOfScene = new THREE.Vector3(-0.5, -0.5, -0.5);
 
 /**
@@ -28,6 +28,7 @@ renderer.setClearColor(0x000000, 1);
 const mainView = new PerspectiveView({ x: 0, y: 0.5, width: 1, height: 0.5 });
 mainView.camera.position.set(0, 2, 5);
 mainView.camera.position.add(centerOfScene);
+mainView.camera.layers.enable(1);
 
 const zView = new OrthographicView({ x: 0, y: 0, width: 0.5, height: 0.5 }, { height: 5 });
 zView.camera.position.copy(centerOfScene);
@@ -40,10 +41,6 @@ xView.camera.lookAt(centerOfScene);
 
 const views = [mainView, zView, xView];
 
-for (const view of views) {
-  view.scene.background = new THREE.Color(0xaaaaaa);
-}
-
 /**
  * CONTROLS
  */
@@ -51,7 +48,9 @@ const orbitControls = new OrbitControls(mainView.camera, renderer.domElement);
 orbitControls.target.copy(centerOfScene);
 orbitControls.update();
 const transformControls = new TransformControls(mainView.camera, renderer.domElement);
-mainView.scene.add(transformControls);
+transformControls.getRaycaster().layers.set(1);
+transformControls.traverse((child) => child.layers.set(1));
+scene.add(transformControls);
 // @ts-ignore
 // for supporting the custom viewport
 transformControls._getPointer = function (event) {
@@ -73,9 +72,9 @@ transformControls.addEventListener("dragging-changed", ({ value }) => {
  */
 const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(1, 1, 1);
-sharedScene.add(light);
+scene.add(light);
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-sharedScene.add(ambientLight);
+scene.add(ambientLight);
 
 /**
  * AXES HELPER
@@ -95,20 +94,20 @@ axes.forEach((axis, index) => {
   );
   axesHelper.add(axis);
 });
-sharedScene.add(axesHelper);
+scene.add(axesHelper);
 
 /**
  * CAMERA HELPER
  */
 const cameraHelper = new THREE.CameraHelper(mainView.camera);
-sharedScene.add(cameraHelper);
+scene.add(cameraHelper);
 
 /**
  * GRID
  */
 const gridHelper = new THREE.GridHelper(10, 10);
 gridHelper.position.copy(centerOfScene);
-sharedScene.add(gridHelper);
+scene.add(gridHelper);
 const grid = new THREE.Group();
 for (let i = -4.5; i < 5.5; i++) {
   for (let j = -4.5; j < 5.5; j++) {
@@ -123,7 +122,7 @@ for (let i = -4.5; i < 5.5; i++) {
     grid.add(gridElement);
   }
 }
-sharedScene.add(grid);
+scene.add(grid);
 
 /**
  * BLOCK
@@ -137,7 +136,7 @@ const expectedBlock = new THREE.Mesh(
   }),
 );
 expectedBlock.position.set(0, 0.5, 0);
-sharedScene.add(expectedBlock);
+scene.add(expectedBlock);
 
 /**
  * HISTORY
@@ -207,7 +206,7 @@ function handleRightClick() {
         },
         () => {
           pointer.register(object);
-          sharedScene.add(object);
+          scene.add(object);
         },
       ),
     );
@@ -239,7 +238,7 @@ function handleSpacebar() {
     new Action(
       () => {
         pointer.register(newBlock);
-        sharedScene.add(newBlock);
+        scene.add(newBlock);
       },
       () => {
         if (selectedBlock === newBlock) {
@@ -313,8 +312,7 @@ requestAnimationFrame(function animate(time) {
       view.viewport.height * window.innerHeight,
     );
     renderer.clearColor();
-    view.scene.add(sharedScene);
-    renderer.render(view.scene, view.camera);
+    renderer.render(scene, view.camera);
   });
 });
 
