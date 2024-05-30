@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { OrbitControls, TransformControls } from "three/examples/jsm/Addons.js";
 import { Action, ActionHistory } from "./utils/ActionHistory";
 import KeyMap, { Modifiers } from "./utils/KeyMap";
+import TracedObject from "./utils/TracedObject";
 import { OrthographicView, PerspectiveView } from "./utils/View";
 
 /**
@@ -109,7 +110,7 @@ scene.add(cameraHelper);
 const gridHelper = new THREE.GridHelper(10, 10);
 gridHelper.position.copy(centerOfScene);
 scene.add(gridHelper);
-const grid = new THREE.Group();
+const grid = new TracedObject(new THREE.Group());
 for (let i = -4.5; i < 5.5; i++) {
   for (let j = -4.5; j < 5.5; j++) {
     const gridElement = new THREE.Mesh(
@@ -124,6 +125,7 @@ for (let i = -4.5; i < 5.5; i++) {
   }
 }
 scene.add(grid);
+grid.bind(mainView);
 
 /**
  * BLOCK
@@ -144,19 +146,8 @@ scene.add(expectedBlock);
  */
 const history = new ActionHistory();
 
-/**
- * RAYCASTER & MOUSE
- */
-const raycaster = new THREE.Raycaster();
-const pointer = mainView.pointer;
-const tracedObjects: THREE.Object3D[] = [grid];
-
-let drag = false;
-window.addEventListener("pointermove", (event) => {
-  drag = event.buttons === 1;
-});
-
-let selectedBlock: THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial> | undefined;
+type BlockType = THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>;
+let selectedBlock: BlockType | undefined;
 
 function unselectBlock() {
   if (selectedBlock === undefined) return;
@@ -167,7 +158,7 @@ function unselectBlock() {
   expectedBlock.visible = true;
 }
 
-function selectBlock(block: THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>) {
+function selectBlock(block: BlockType) {
   block.material.color.set(0x0000ff);
   selectedBlock = block;
   transformControls.attach(block);
@@ -175,32 +166,30 @@ function selectBlock(block: THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMate
   expectedBlock.visible = false;
 }
 
-function handleClick() {
-  const object = raycaster.intersectObjects(tracedObjects)[0]?.object;
+function handleClick(object: BlockType) {
   if (object && object.name.startsWith("block")) {
     if (selectedBlock === object) {
       unselectBlock();
       return;
     }
     if (selectedBlock) unselectBlock();
-    selectBlock(object as THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>);
+    selectBlock(object);
   }
 }
 
-function handleRightClick() {
-  const object = raycaster.intersectObjects(tracedObjects)[0]?.object;
-  if (object && object.name.startsWith("block")) {
+function handleRightClick(object: TracedObject) {
+  if (object && object.object.name.startsWith("block")) {
     history.do(
       new Action(
         () => {
-          if (selectedBlock === object) {
+          if (selectedBlock === object.object) {
             unselectBlock();
           }
-          tracedObjects.splice(tracedObjects.indexOf(object), 1);
+          object.unbind();
           object.removeFromParent();
         },
         () => {
-          tracedObjects.push(object);
+          object.bind(mainView);
           scene.add(object);
         },
       ),
@@ -208,14 +197,17 @@ function handleRightClick() {
   }
 }
 
-window.addEventListener("pointerup", (e) => {
-  if (!drag) {
-    // non-dragging click
-    if (e.button === 0) handleClick();
-    if (e.button === 2) handleRightClick();
-  } else {
-    // dragging end
-    drag = false;
+// mainView.addEventListener("pointermove", (e) => {
+// });
+
+mainView.addEventListener("click", (e) => {
+  const intersect = e.intersection;
+  const target = e.currentTarget;
+  if (intersect && e.button === 0) {
+    handleClick(intersect.object as BlockType);
+  }
+  if (target && e.button === 2) {
+    handleRightClick(target);
   }
 });
 
@@ -225,21 +217,23 @@ window.addEventListener("pointerup", (e) => {
 
 function handleSpacebar() {
   if (!expectedBlock.visible) return;
-  const newBlock = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x00ff00 }));
-  newBlock.position.copy(expectedBlock.position);
-  newBlock.name = `block-${newBlock.uuid}`;
+  const newBlock = new TracedObject(
+    new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x00ff00 })),
+  );
+  newBlock.object.position.copy(expectedBlock.position);
+  newBlock.object.name = `block-${newBlock.uuid}`;
 
   history.do(
     new Action(
       () => {
-        tracedObjects.push(newBlock);
+        newBlock.bind(mainView);
         scene.add(newBlock);
       },
       () => {
-        if (selectedBlock === newBlock) {
+        if (selectedBlock === newBlock.object) {
           unselectBlock();
         }
-        tracedObjects.pop();
+        newBlock.unbind();
         newBlock.removeFromParent();
       },
     ),
@@ -252,7 +246,7 @@ function shiftSelectedBlock(offset: THREE.Vector3) {
   const newPosition = selectedBlock.position.clone().add(offset);
 
   // check there is no block in the new position
-  if (tracedObjects.some((o) => o.position.equals(newPosition))) return;
+  if (mainView.tracedObjects.some((o) => o.position.equals(newPosition))) return;
   history.do(
     new Action(
       () => {
@@ -281,9 +275,9 @@ keyMap.bind(Modifiers.NONE, "Period", () => shiftSelectedBlock(new THREE.Vector3
  */
 requestAnimationFrame(function animate(time) {
   requestAnimationFrame(animate);
+  mainView.updateIntersections();
+  const intersect = mainView.intersections[0];
 
-  raycaster.setFromCamera(pointer, mainView.camera);
-  const intersect = raycaster.intersectObjects(tracedObjects)[0];
   if (intersect) {
     expectedBlock.position.copy(intersect.object.position);
     if (intersect.object.name.startsWith("grid")) {
@@ -293,7 +287,6 @@ requestAnimationFrame(function animate(time) {
       expectedBlock.position.add(intersect.face!.normal);
     }
   }
-
   views.forEach((view, index) => {
     renderer.setViewport(
       view.viewport.x * window.innerWidth,
