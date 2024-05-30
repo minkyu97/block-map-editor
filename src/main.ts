@@ -1,8 +1,7 @@
 import * as dat from "lil-gui";
 import * as THREE from "three";
 import { OrbitControls, TransformControls } from "three/examples/jsm/Addons.js";
-import Action from "./utils/Action";
-import ActionHistory from "./utils/ActionHistory";
+import { Action, ActionHistory } from "./utils/ActionHistory";
 import KeyMap, { Modifiers } from "./utils/KeyMap";
 import { OrthographicView, PerspectiveView } from "./utils/View";
 

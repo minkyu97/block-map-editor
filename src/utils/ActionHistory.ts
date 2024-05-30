@@ -1,9 +1,31 @@
-import Action from "./Action";
+export class Action {
+  isExecuted: boolean;
+  private _invoke: () => void;
+  private _revoke: () => void;
 
-export default class History {
+  constructor(invoke: () => void, revoke: () => void) {
+    this.isExecuted = false;
+    this._invoke = invoke;
+    this._revoke = revoke;
+  }
+
+  invoke() {
+    if (this.isExecuted) return;
+    this._invoke();
+    this.isExecuted = true;
+  }
+
+  revoke() {
+    if (!this.isExecuted) return;
+    this._revoke();
+    this.isExecuted = false;
+  }
+}
+
+export class ActionHistory {
   maxHistory: number;
-  readonly invokedActions: Action<unknown>[];
-  readonly revokedActions: Action<unknown>[];
+  readonly invokedActions: Action[];
+  readonly revokedActions: Action[];
 
   constructor(maxHistory: number = 1000) {
     this.maxHistory = maxHistory;
@@ -11,7 +33,7 @@ export default class History {
     this.revokedActions = [];
   }
 
-  do(action: Action<unknown>) {
+  do(action: Action) {
     action.invoke();
     this.invokedActions.push(action);
     if (this.invokedActions.length > this.maxHistory) {
