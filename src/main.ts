@@ -21,6 +21,9 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 renderer.setScissorTest(true);
 renderer.setClearColor(0x000000, 1);
+window.addEventListener("resize", () => {
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
 
 /**
  * VIEWS
@@ -55,8 +58,7 @@ scene.add(transformControls);
 // for supporting the custom viewport
 transformControls._getPointer = function (event) {
   return {
-    x: mainView.pointer.position.x,
-    y: mainView.pointer.position.y,
+    ...mainView.pointer,
     button: event.button,
   };
 }.bind(transformControls);
@@ -146,18 +148,12 @@ const history = new ActionHistory();
 /**
  * RAYCASTER & MOUSE
  */
+const raycaster = new THREE.Raycaster();
 const pointer = mainView.pointer;
-pointer.registerAll(grid.children);
+const tracedObjects: THREE.Object3D[] = [grid];
 
 let drag = false;
 window.addEventListener("pointermove", (event) => {
-  const mouseX = event.clientX;
-  const mouseY = window.innerHeight - event.clientY;
-  for (const view of views) {
-    if (mouseX < view.realViewport.x || mouseX > view.realViewport.x + view.realViewport.width) continue;
-    if (mouseY < view.realViewport.y || mouseY > view.realViewport.y + view.realViewport.height) continue;
-    view.onMouseMove(mouseX, mouseY);
-  }
   drag = event.buttons === 1;
 });
 
@@ -181,7 +177,7 @@ function selectBlock(block: THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMate
 }
 
 function handleClick() {
-  const object = pointer.intersectObject()?.object;
+  const object = raycaster.intersectObjects(tracedObjects)[0]?.object;
   if (object && object.name.startsWith("block")) {
     if (selectedBlock === object) {
       unselectBlock();
@@ -193,7 +189,7 @@ function handleClick() {
 }
 
 function handleRightClick() {
-  const object = pointer.intersectObject()?.object;
+  const object = raycaster.intersectObjects(tracedObjects)[0]?.object;
   if (object && object.name.startsWith("block")) {
     history.do(
       new Action(
@@ -201,11 +197,11 @@ function handleRightClick() {
           if (selectedBlock === object) {
             unselectBlock();
           }
-          pointer.remove(object);
+          tracedObjects.splice(tracedObjects.indexOf(object), 1);
           object.removeFromParent();
         },
         () => {
-          pointer.register(object);
+          tracedObjects.push(object);
           scene.add(object);
         },
       ),
@@ -237,14 +233,14 @@ function handleSpacebar() {
   history.do(
     new Action(
       () => {
-        pointer.register(newBlock);
+        tracedObjects.push(newBlock);
         scene.add(newBlock);
       },
       () => {
         if (selectedBlock === newBlock) {
           unselectBlock();
         }
-        pointer.remove(newBlock);
+        tracedObjects.pop();
         newBlock.removeFromParent();
       },
     ),
@@ -257,7 +253,7 @@ function shiftSelectedBlock(offset: THREE.Vector3) {
   const newPosition = selectedBlock.position.clone().add(offset);
 
   // check there is no block in the new position
-  if (pointer.traceObjects.some((o) => o.position.equals(newPosition))) return;
+  if (tracedObjects.some((o) => o.position.equals(newPosition))) return;
   history.do(
     new Action(
       () => {
@@ -287,7 +283,8 @@ keyMap.bind(Modifiers.NONE, "Period", () => shiftSelectedBlock(new THREE.Vector3
 requestAnimationFrame(function animate(time) {
   requestAnimationFrame(animate);
 
-  const intersect = pointer.intersectObject();
+  raycaster.setFromCamera(pointer, mainView.camera);
+  const intersect = raycaster.intersectObjects(tracedObjects)[0];
   if (intersect) {
     expectedBlock.position.copy(intersect.object.position);
     if (intersect.object.name.startsWith("grid")) {
@@ -314,16 +311,6 @@ requestAnimationFrame(function animate(time) {
     renderer.clearColor();
     renderer.render(scene, view.camera);
   });
-});
-
-window.addEventListener("resize", () => {
-  const width = window.innerWidth;
-  const height = window.innerHeight;
-
-  renderer.setSize(width, height);
-  for (const view of views) {
-    view.onResize(width, height);
-  }
 });
 
 /**
