@@ -256,7 +256,10 @@ function shiftSelectedBlock(offset: THREE.Vector3) {
   const newPosition = selectedBlock.position.clone().add(offset);
 
   // check there is no block in the new position
-  if (mainView.tracedObjects.some((o) => o.position.equals(newPosition))) return;
+  const overlap = mainView.tracedObjects.some((o) => {
+    return o.object.position.equals(newPosition) && o.object.name.startsWith("block");
+  });
+  if (overlap) return;
   history.do(
     new Action(
       () => {
