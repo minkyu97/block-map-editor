@@ -30,12 +30,15 @@ export abstract class View extends THREE.EventDispatcher<ViewEventMap> {
       this.onResize(window.innerWidth, window.innerHeight);
     });
     window.addEventListener("pointermove", (e) => {
+      if (!this.checkEventInViewport(e)) return;
       this.onMouseMove(e);
     });
     window.addEventListener("pointerup", (e) => {
+      if (!this.checkEventInViewport(e)) return;
       this.onMouseUp(e);
     });
     window.addEventListener("pointerdown", (e) => {
+      if (!this.checkEventInViewport(e)) return;
       this.onMouseDown(e);
     });
   }
@@ -74,13 +77,8 @@ export abstract class View extends THREE.EventDispatcher<ViewEventMap> {
       const object = intersection.object;
       object.dispatchEvent(upEvent);
     });
-    const clickedObjects = intersections
-      .map((intersection) => intersection.object)
-      .filter((object) => this.lastDownObjects.has(object));
-    const clickEvent = this.makePointerEvent("click", e, intersections[0]);
-    clickedObjects.forEach((object) => object.dispatchEvent(clickEvent));
     this.dispatchEvent(upEvent);
-    this.dispatchEvent(clickEvent);
+    this.onMouseClick(e);
   }
 
   private onMouseDown(e: PointerEvent) {
@@ -92,6 +90,16 @@ export abstract class View extends THREE.EventDispatcher<ViewEventMap> {
     });
     this.lastDownObjects = new Set(intersections.map((intersection) => intersection.object));
     this.dispatchEvent(downEvent);
+  }
+
+  private onMouseClick(e: PointerEvent) {
+    const intersections = this.intersections;
+    const clickedObjects = intersections
+      .map((intersection) => intersection.object)
+      .filter((object) => this.lastDownObjects.has(object));
+    const clickEvent = this.makePointerEvent("click", e, intersections[0]);
+    clickedObjects.forEach((object) => object.dispatchEvent(clickEvent));
+    this.dispatchEvent(clickEvent);
   }
 
   private makePointerEvent<T extends keyof TPointerEventMap>(
@@ -107,6 +115,13 @@ export abstract class View extends THREE.EventDispatcher<ViewEventMap> {
       intersection,
       currentTarget: intersection?.object.parent as TracedObject | undefined,
     };
+  }
+
+  private checkEventInViewport(e: PointerEvent): boolean {
+    const mouseX = e.clientX;
+    const mouseY = window.innerHeight - e.clientY;
+    const { x, y, width, height } = this.realViewport;
+    return mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height;
   }
 
   private updateRaycaster(): void {

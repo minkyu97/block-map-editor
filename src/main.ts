@@ -197,10 +197,20 @@ function handleRightClick(object: TracedObject) {
   }
 }
 
-// mainView.addEventListener("pointermove", (e) => {
-// });
+let pointerBeforeDrag: THREE.Vector2 | undefined;
+mainView.addEventListener("pointermove", (e) => {
+  if (e.buttons === 0) {
+    pointerBeforeDrag = undefined;
+    return;
+  }
+  pointerBeforeDrag = pointerBeforeDrag ?? new THREE.Vector2(e.x, e.y);
+});
 
 mainView.addEventListener("click", (e) => {
+  const currentPointer = new THREE.Vector2(e.x, e.y);
+  const previousPointer = pointerBeforeDrag ?? currentPointer;
+  pointerBeforeDrag = undefined;
+  if (previousPointer.distanceTo(currentPointer) > 0.01) return;
   const intersect = e.intersection;
   const target = e.currentTarget;
   if (intersect && e.button === 0) {
