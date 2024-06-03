@@ -36,11 +36,11 @@ jobs:
       - name: Install dependencies
         run: yarn install
       - name: Build with yarn
-        run: |
-          yarn build
-          mv ./dist ./_site
+        run: yarn build --base block-map-editor
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/
 
   # Deployment job
   deploy:
