@@ -56,6 +56,9 @@ const orbitControls = new OrbitControls(mainView.camera, renderer.domElement);
 orbitControls.target.copy(centerOfScene);
 orbitControls.update();
 const transformControls = new TransformControls(mainView.camera, renderer.domElement);
+transformControls.addEventListener("pointStart-changed", (e) => {
+  console.log(e);
+});
 transformControls.getRaycaster().layers.set(1);
 transformControls.traverse((child) => child.layers.set(1));
 world.add(transformControls);
@@ -160,6 +163,8 @@ function unselectBlock() {
   transformControls.detach();
   transformControls.visible = false;
   expectedBlock.visible = true;
+
+  selectedBlockFolder.destroy();
 }
 
 function selectBlock(block: BlockType) {
@@ -168,6 +173,11 @@ function selectBlock(block: BlockType) {
   transformControls.attach(block);
   transformControls.visible = true;
   expectedBlock.visible = false;
+
+  selectedBlockFolder = gui.addFolder("Selected Block");
+  selectedBlockFolder.add(block.position, "x").listen();
+  selectedBlockFolder.add(block.position, "y").listen();
+  selectedBlockFolder.add(block.position, "z").listen();
 }
 
 function handleClick(object: BlockType) {
@@ -282,8 +292,23 @@ keyMap.bind(Modifiers.NONE, "Period", () => shiftSelectedBlock(new THREE.Vector3
 /**
  * ANIMATION
  */
+let previousSelectedBlockPosition: THREE.Vector3 | undefined;
+
 requestAnimationFrame(function animate(time) {
   requestAnimationFrame(animate);
+
+  const overlap = world.tracedObjects.some(
+    (o) =>
+      o.object.name.startsWith("block") &&
+      o.object !== selectedBlock &&
+      selectedBlock?.position.equals(o.object.position),
+  );
+  if (overlap) {
+    selectedBlock?.position.copy(previousSelectedBlockPosition!);
+  }
+
+  previousSelectedBlockPosition = selectedBlock?.position.clone();
+
   mainView.updateIntersections();
   const intersect = mainView.intersections[0];
 
@@ -323,3 +348,5 @@ const helpTextManager = {
   },
 };
 helperFolder.add(helpTextManager, "visible").name("Help Text");
+
+let selectedBlockFolder: dat.GUI;
