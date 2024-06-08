@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import TracedObject from "./TracedObject";
+import { TracedObject } from "./TracedObject";
 
 export type TPointerEventMap = {
   pointermove: TPointer & TPointerStatus;

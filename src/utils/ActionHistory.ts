@@ -33,7 +33,8 @@ export class ActionHistory {
     this.revokedActions = [];
   }
 
-  do(action: Action) {
+  do(invoke: () => void, revoke: () => void) {
+    const action = new Action(invoke, revoke);
     action.invoke();
     this.invokedActions.push(action);
     if (this.invokedActions.length > this.maxHistory) {

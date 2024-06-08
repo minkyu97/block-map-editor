@@ -1,17 +1,15 @@
 import * as THREE from "three";
-import { TPointerEventMap } from "./Pointer";
-import { View } from "./View";
+import { World } from "../world/World";
+import { TPointerEventMap } from "./TPointer";
 
 type TracedObjectEventMap = THREE.Object3DEventMap & TPointerEventMap;
 
-export default class TracedObject<
-  T extends THREE.Object3D = THREE.Object3D,
-> extends THREE.Object3D<TracedObjectEventMap> {
-  view?: View;
+export class TracedObject<T extends THREE.Object3D = THREE.Object3D> extends THREE.Object3D<TracedObjectEventMap> {
+  world?: World;
   object: T;
 
   get binded(): boolean {
-    return this.view !== undefined;
+    return this.world !== undefined;
   }
 
   constructor(object: T) {
@@ -20,13 +18,13 @@ export default class TracedObject<
     this.object = object;
   }
 
-  bind(view: View): void {
-    this.view = view;
-    this.view.addTracedObject(this);
+  bind(world: World): void {
+    this.world = world;
+    this.world.trace(this);
   }
 
   unbind(): void {
-    if (this.view) this.view.removeTracedObject(this);
-    this.view = undefined;
+    if (this.world) this.world.removeTracedObject(this);
+    this.world = undefined;
   }
 }

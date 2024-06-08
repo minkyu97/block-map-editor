@@ -6,38 +6,30 @@ const META = 0b1000;
 
 export const Modifiers = { NONE, SHIFT, CTRL, ALT, META } as const;
 
-type Table = { [modifier: number]: { [code: string]: () => void } };
+type Table = Map<number, Map<string, () => void>>;
 
-export default class KeyMap {
-  private static instance: KeyMap;
+export class KeyMap {
   private readonly _table: Table;
   isActive: boolean;
 
-  private constructor() {
-    this._table = {};
+  constructor() {
+    this._table = new Map();
     this.isActive = true;
     window.addEventListener("keydown", this.handle.bind(this));
   }
 
-  static getInstance() {
-    if (!KeyMap.instance) {
-      KeyMap.instance = new KeyMap();
-    }
-    return KeyMap.instance;
-  }
-
   bind(modifier: number, code: string, callback: () => void) {
-    if (!(modifier in this._table)) {
-      this._table[modifier] = {};
+    if (!this._table.has(modifier)) {
+      this._table.set(modifier, new Map());
     }
-    if (this._table[modifier]![code]) {
+    if (this._table.get(modifier)!.has(code)) {
       console.warn("Overwriting existing binding");
     }
-    this._table[modifier]![code] = callback;
+    this._table.get(modifier)!.set(code, callback);
   }
 
   unbind(modifier: number, code: string) {
-    delete this._table[modifier]?.[code];
+    this._table.get(modifier)?.delete(code);
   }
 
   activate() {
@@ -55,7 +47,7 @@ export default class KeyMap {
       (event.ctrlKey ? CTRL : NONE) |
       (event.altKey ? ALT : NONE) |
       (event.metaKey ? META : NONE);
-    const callback = this._table[modifier]?.[event.code];
+    const callback = this._table.get(modifier)?.get(event.code);
     if (callback) {
       event.preventDefault();
       callback();

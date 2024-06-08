@@ -1,6 +1,17 @@
-import * as THREE from "three";
-import { TPointer, TPointerEventMap } from "./Pointer";
-import TracedObject from "./TracedObject";
+import {
+  BaseEvent,
+  Camera,
+  EventDispatcher,
+  Intersection,
+  OrthographicCamera,
+  PerspectiveCamera,
+  Raycaster,
+  Vector2,
+  Vector3,
+} from "three";
+import { TPointer, TPointerEventMap } from "../utils/TPointer";
+import { TracedObject } from "../utils/TracedObject";
+import { World } from "../world/World";
 
 type ViewPort = { x: number; y: number; width: number; height: number };
 
@@ -8,21 +19,36 @@ type ViewEventMap = {
   resize: { width: number; height: number };
 } & TPointerEventMap;
 
-export abstract class View extends THREE.EventDispatcher<ViewEventMap> {
+export abstract class View extends EventDispatcher<ViewEventMap> {
+  world: World;
+  readonly viewport: ViewPort;
+  readonly realViewport: ViewPort;
   readonly pointer: TPointer;
-  readonly raycaster: THREE.Raycaster;
-  readonly tracedObjects: TracedObject[];
-  intersections: THREE.Intersection<TracedObject>[];
+  readonly raycaster: Raycaster;
+  intersections: Intersection<TracedObject>[];
   private lastDownObjects: Set<TracedObject>;
-  abstract readonly camera: THREE.Camera;
-  abstract readonly viewport: ViewPort;
-  abstract readonly realViewport: ViewPort;
+  abstract readonly camera: Camera;
 
-  constructor() {
+  get position() {
+    return this.camera.position;
+  }
+
+  get layers() {
+    return this.camera.layers;
+  }
+
+  constructor(world: World, viewport: ViewPort) {
     super();
+    this.world = world;
+    this.viewport = viewport;
+    this.realViewport = {
+      x: viewport.x * window.innerWidth,
+      y: viewport.y * window.innerHeight,
+      width: viewport.width * window.innerWidth,
+      height: viewport.height * window.innerHeight,
+    };
     this.pointer = { x: 0, y: 0 };
-    this.raycaster = new THREE.Raycaster();
-    this.tracedObjects = [];
+    this.raycaster = new Raycaster();
     this.intersections = [];
     this.lastDownObjects = new Set();
 
@@ -44,6 +70,15 @@ export abstract class View extends THREE.EventDispatcher<ViewEventMap> {
   }
 
   abstract updateCameraAspect(): void;
+
+  updateIntersections() {
+    this.updateRaycaster();
+    this.intersections = this.world.getIntersections(this.raycaster);
+  }
+
+  lookAt(target: Vector3) {
+    this.camera.lookAt(target);
+  }
 
   private onResize(width: number, height: number) {
     this.realViewport.x = this.viewport.x * width;
@@ -105,8 +140,8 @@ export abstract class View extends THREE.EventDispatcher<ViewEventMap> {
   private makePointerEvent<T extends keyof TPointerEventMap>(
     type: T,
     e: PointerEvent,
-    intersection?: THREE.Intersection,
-  ): THREE.BaseEvent<T> & TPointerEventMap[T] {
+    intersection?: Intersection,
+  ): BaseEvent<T> & TPointerEventMap[T] {
     return {
       type,
       ...this.pointer,
@@ -125,26 +160,8 @@ export abstract class View extends THREE.EventDispatcher<ViewEventMap> {
   }
 
   private updateRaycaster(): void {
-    const pointer = new THREE.Vector2(this.pointer.x, this.pointer.y);
+    const pointer = new Vector2(this.pointer.x, this.pointer.y);
     this.raycaster.setFromCamera(pointer, this.camera);
-  }
-
-  private getIntersections(): THREE.Intersection<TracedObject>[] {
-    return this.raycaster.intersectObjects(this.tracedObjects, true);
-  }
-
-  updateIntersections() {
-    this.updateRaycaster();
-    this.intersections = this.getIntersections();
-  }
-
-  addTracedObject(object: TracedObject): void {
-    this.tracedObjects.push(object);
-  }
-
-  removeTracedObject(object: TracedObject): void {
-    const index = this.tracedObjects.indexOf(object);
-    if (index !== -1) this.tracedObjects.splice(index, 1);
   }
 }
 
@@ -155,21 +172,12 @@ type PerspectiveCameraOptions = {
 };
 
 export class PerspectiveView extends View {
-  readonly camera: THREE.PerspectiveCamera;
-  readonly viewport: ViewPort;
-  readonly realViewport: ViewPort;
+  readonly camera: PerspectiveCamera;
 
-  constructor(viewport: ViewPort, { fov = 75, near = 0.1, far = 1000 }: PerspectiveCameraOptions = {}) {
-    super();
-    this.viewport = viewport;
-    this.realViewport = {
-      x: viewport.x * window.innerWidth,
-      y: viewport.y * window.innerHeight,
-      width: viewport.width * window.innerWidth,
-      height: viewport.height * window.innerHeight,
-    };
+  constructor(world: World, viewport: ViewPort, { fov = 75, near = 0.1, far = 1000 }: PerspectiveCameraOptions = {}) {
+    super(world, viewport);
     const aspect = this.realViewport.width / this.realViewport.height;
-    this.camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+    this.camera = new PerspectiveCamera(fov, aspect, near, far);
   }
 
   updateCameraAspect(): void {
@@ -185,23 +193,18 @@ type OrthographicCameraOptions = {
 };
 
 export class OrthographicView extends View {
-  readonly camera: THREE.OrthographicCamera;
-  readonly viewport: ViewPort;
-  readonly realViewport: ViewPort;
+  readonly camera: OrthographicCamera;
   readonly height: number;
 
-  constructor(viewport: ViewPort, { near = 0.1, far = 1000, height = 2 }: OrthographicCameraOptions = {}) {
-    super();
-    this.viewport = viewport;
-    this.realViewport = {
-      x: viewport.x * window.innerWidth,
-      y: viewport.y * window.innerHeight,
-      width: viewport.width * window.innerWidth,
-      height: viewport.height * window.innerHeight,
-    };
-    const aspect = this.realViewport.width / this.realViewport.height;
+  constructor(
+    world: World,
+    viewport: ViewPort,
+    { near = 0.1, far = 1000, height = 2 }: OrthographicCameraOptions = {},
+  ) {
+    super(world, viewport);
     this.height = height;
-    this.camera = new THREE.OrthographicCamera(-height * aspect, height * aspect, height, -height, near, far);
+    const aspect = this.realViewport.width / this.realViewport.height;
+    this.camera = new OrthographicCamera(-height * aspect, height * aspect, height, -height, near, far);
   }
 
   updateCameraAspect(): void {

@@ -1,15 +1,17 @@
 import * as dat from "lil-gui";
 import * as THREE from "three";
 import { OrbitControls, TransformControls } from "three/examples/jsm/Addons.js";
-import { Action, ActionHistory } from "./utils/ActionHistory";
-import KeyMap, { Modifiers } from "./utils/KeyMap";
-import TracedObject from "./utils/TracedObject";
-import { OrthographicView, PerspectiveView } from "./utils/View";
+import { ActionHistory } from "./utils/ActionHistory";
+import { KeyMap, Modifiers } from "./utils/KeyMap";
+import { TracedObject } from "./utils/TracedObject";
+import { OrthographicView, PerspectiveView } from "./view/View";
+import { World } from "./world/World";
 
 /**
- * SCENE
+ * SCENE & WORLD
  */
 const scene = new THREE.Scene();
+const world = new World(scene);
 scene.background = new THREE.Color(0xaaaaaa);
 const centerOfScene = new THREE.Vector3(-0.5, -0.5, -0.5);
 
@@ -17,10 +19,13 @@ const centerOfScene = new THREE.Vector3(-0.5, -0.5, -0.5);
  * RENDERER
  */
 const renderer = new THREE.WebGLRenderer();
+const pixelRatio = Math.min(window.devicePixelRatio, 2);
+renderer.setPixelRatio(pixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 renderer.setScissorTest(true);
-renderer.setClearColor(0x000000, 1);
+renderer.autoClear = false;
+// renderer.setClearColor(0x000000, 1);
 window.addEventListener("resize", () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
@@ -28,19 +33,19 @@ window.addEventListener("resize", () => {
 /**
  * VIEWS
  */
-const mainView = new PerspectiveView({ x: 0, y: 0.5, width: 1, height: 0.5 });
-mainView.camera.position.set(0, 2, 5);
-mainView.camera.position.add(centerOfScene);
-mainView.camera.layers.enable(1);
+const mainView = new PerspectiveView(world, { x: 0, y: 0.5, width: 1, height: 0.5 });
+mainView.position.set(0, 2, 5);
+mainView.position.add(centerOfScene);
+mainView.layers.enable(1);
 
-const zView = new OrthographicView({ x: 0, y: 0, width: 0.5, height: 0.5 }, { height: 5 });
-zView.camera.position.copy(centerOfScene);
-zView.camera.position.z += 10;
+const zView = new OrthographicView(world, { x: 0, y: 0, width: 0.5, height: 0.5 }, { height: 5 });
+zView.position.copy(centerOfScene);
+zView.position.z += 10;
 
-const xView = new OrthographicView({ x: 0.5, y: 0, width: 0.5, height: 0.5 }, { height: 5 });
-xView.camera.position.copy(centerOfScene);
-xView.camera.position.x += 10;
-xView.camera.lookAt(centerOfScene);
+const xView = new OrthographicView(world, { x: 0.5, y: 0, width: 0.5, height: 0.5 }, { height: 5 });
+xView.position.copy(centerOfScene);
+xView.position.x += 10;
+xView.lookAt(centerOfScene);
 
 const views = [mainView, zView, xView];
 
@@ -53,7 +58,7 @@ orbitControls.update();
 const transformControls = new TransformControls(mainView.camera, renderer.domElement);
 transformControls.getRaycaster().layers.set(1);
 transformControls.traverse((child) => child.layers.set(1));
-scene.add(transformControls);
+world.add(transformControls);
 // @ts-ignore
 // for supporting the custom viewport
 transformControls._getPointer = function (event) {
@@ -74,9 +79,9 @@ transformControls.addEventListener("dragging-changed", ({ value }) => {
  */
 const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(1, 1, 1);
-scene.add(light);
+world.add(light);
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-scene.add(ambientLight);
+world.add(ambientLight);
 
 /**
  * AXES HELPER
@@ -96,20 +101,20 @@ axes.forEach((axis, index) => {
   );
   axesHelper.add(axis);
 });
-scene.add(axesHelper);
+world.add(axesHelper);
 
 /**
  * CAMERA HELPER
  */
 const cameraHelper = new THREE.CameraHelper(mainView.camera);
-scene.add(cameraHelper);
+world.add(cameraHelper);
 
 /**
  * GRID
  */
 const gridHelper = new THREE.GridHelper(10, 10);
 gridHelper.position.copy(centerOfScene);
-scene.add(gridHelper);
+world.add(gridHelper);
 const grid = new TracedObject(new THREE.Group());
 for (let i = -4.5; i < 5.5; i++) {
   for (let j = -4.5; j < 5.5; j++) {
@@ -124,8 +129,7 @@ for (let i = -4.5; i < 5.5; i++) {
     grid.add(gridElement);
   }
 }
-scene.add(grid);
-grid.bind(mainView);
+grid.bind(world);
 
 /**
  * BLOCK
@@ -139,7 +143,7 @@ const expectedBlock = new THREE.Mesh(
   }),
 );
 expectedBlock.position.set(0, 0.5, 0);
-scene.add(expectedBlock);
+world.add(expectedBlock);
 
 /**
  * HISTORY
@@ -180,19 +184,16 @@ function handleClick(object: BlockType) {
 function handleRightClick(object: TracedObject) {
   if (object && object.object.name.startsWith("block")) {
     history.do(
-      new Action(
-        () => {
-          if (selectedBlock === object.object) {
-            unselectBlock();
-          }
-          object.unbind();
-          object.removeFromParent();
-        },
-        () => {
-          object.bind(mainView);
-          scene.add(object);
-        },
-      ),
+      () => {
+        if (selectedBlock === object.object) {
+          unselectBlock();
+        }
+        object.unbind();
+        object.removeFromParent();
+      },
+      () => {
+        object.bind(world);
+      },
     );
   }
 }
@@ -234,19 +235,16 @@ function handleSpacebar() {
   newBlock.object.name = `block-${newBlock.uuid}`;
 
   history.do(
-    new Action(
-      () => {
-        newBlock.bind(mainView);
-        scene.add(newBlock);
-      },
-      () => {
-        if (selectedBlock === newBlock.object) {
-          unselectBlock();
-        }
-        newBlock.unbind();
-        newBlock.removeFromParent();
-      },
-    ),
+    () => {
+      newBlock.bind(world);
+    },
+    () => {
+      if (selectedBlock === newBlock.object) {
+        unselectBlock();
+      }
+      newBlock.unbind();
+      newBlock.removeFromParent();
+    },
   );
 }
 
@@ -256,23 +254,21 @@ function shiftSelectedBlock(offset: THREE.Vector3) {
   const newPosition = selectedBlock.position.clone().add(offset);
 
   // check there is no block in the new position
-  const overlap = mainView.tracedObjects.some((o) => {
+  const overlap = world.tracedObjects.some((o) => {
     return o.object.position.equals(newPosition) && o.object.name.startsWith("block");
   });
   if (overlap) return;
   history.do(
-    new Action(
-      () => {
-        selectedBlock!.position.copy(newPosition);
-      },
-      () => {
-        selectedBlock!.position.copy(prevPosition);
-      },
-    ),
+    () => {
+      selectedBlock!.position.copy(newPosition);
+    },
+    () => {
+      selectedBlock!.position.copy(prevPosition);
+    },
   );
 }
 
-const keyMap = KeyMap.getInstance();
+const keyMap = new KeyMap();
 keyMap.bind(Modifiers.NONE, "Space", handleSpacebar);
 keyMap.bind(Modifiers.META, "KeyZ", () => history.undo());
 keyMap.bind(Modifiers.META | Modifiers.SHIFT, "KeyZ", () => history.redo());
@@ -300,20 +296,11 @@ requestAnimationFrame(function animate(time) {
       expectedBlock.position.add(intersect.face!.normal);
     }
   }
-  views.forEach((view, index) => {
-    renderer.setViewport(
-      view.viewport.x * window.innerWidth,
-      view.viewport.y * window.innerHeight,
-      view.viewport.width * window.innerWidth,
-      view.viewport.height * window.innerHeight,
-    );
-    renderer.setScissor(
-      view.viewport.x * window.innerWidth,
-      view.viewport.y * window.innerHeight,
-      view.viewport.width * window.innerWidth,
-      view.viewport.height * window.innerHeight,
-    );
-    renderer.clearColor();
+  renderer.setScissor(0, 0, window.innerWidth, window.innerHeight);
+  renderer.clear();
+  views.forEach((view) => {
+    renderer.setViewport(view.realViewport.x, view.realViewport.y, view.realViewport.width, view.realViewport.height);
+    renderer.setScissor(view.realViewport.x, view.realViewport.y, view.realViewport.width, view.realViewport.height);
     renderer.render(scene, view.camera);
   });
 });
