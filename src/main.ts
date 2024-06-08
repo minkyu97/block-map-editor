@@ -151,7 +151,7 @@ const history = new ActionHistory();
  */
 type BlockType = THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>;
 const blockTexture = new THREE.TextureLoader().load(
-  "assets/textures/Stylized_Bricks_004/Stylized_Bricks_004_basecolor.png",
+  new URL("/assets/textures/Stylized_Bricks_004/Stylized_Bricks_004_basecolor.png", import.meta.url).toString(),
 );
 const blockMaterial = new THREE.MeshStandardMaterial({ map: blockTexture });
 let selectedBlock: BlockType | undefined;
