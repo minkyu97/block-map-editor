@@ -339,6 +339,57 @@ requestAnimationFrame(function animate(time) {
 const gui = new dat.GUI();
 let selectedBlockFolder: dat.GUI;
 
+const dataFolder = gui.addFolder("Data");
+const fileDownloadElement = document.createElement("a");
+fileDownloadElement.download = "block-map-data.json";
+dataFolder.add(
+  {
+    Save: () => {
+      const data = world.tracedObjects
+        .filter((o) => o.object.name.startsWith("block"))
+        .map((o) => {
+          return {
+            name: o.object.name,
+            position: o.object.position.toArray(),
+          };
+        });
+      const dataString = JSON.stringify(data);
+      const blob = new Blob([dataString], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      fileDownloadElement.href = url;
+      fileDownloadElement.click();
+    },
+  },
+  "Save",
+);
+const fileUploadElement = document.createElement("input");
+fileUploadElement.type = "file";
+fileUploadElement.accept = ".json";
+fileUploadElement.style.display = "none";
+fileUploadElement.addEventListener("change", (e) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const data = JSON.parse(e.target?.result as string);
+    data.forEach((block: { name: string; position: number[] }) => {
+      const newBlock = new TracedObject(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), blockMaterial));
+      newBlock.object.position.fromArray(block.position);
+      newBlock.object.name = block.name;
+      newBlock.bind(world);
+    });
+  };
+  reader.readAsText(file);
+});
+dataFolder.add(
+  {
+    Load: () => {
+      fileUploadElement.click();
+    },
+  },
+  "Load",
+);
+
 const helperFolder = gui.addFolder("Helpers");
 helperFolder.add(cameraHelper, "visible").name("Camera");
 helperFolder.add(axesHelper, "visible").name("Axes");
