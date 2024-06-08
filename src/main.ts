@@ -80,11 +80,18 @@ transformControls.addEventListener("dragging-changed", ({ value }) => {
 /**
  * LIGHT
  */
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(1, 1, 1);
-world.add(light);
+const sunLight = new THREE.DirectionalLight(0xffffff, 1);
+sunLight.position.set(10, 10, 10);
+sunLight.lookAt(centerOfScene);
+world.add(sunLight);
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
 world.add(ambientLight);
+
+/**
+ * SUN LIGHT HELPER
+ */
+const sunLightHelper = new THREE.DirectionalLightHelper(sunLight, 10, 0xffff00);
+world.add(sunLightHelper);
 
 /**
  * AXES HELPER
@@ -135,30 +142,27 @@ for (let i = -4.5; i < 5.5; i++) {
 grid.bind(world);
 
 /**
- * BLOCK
- */
-const expectedBlock = new THREE.Mesh(
-  new THREE.BoxGeometry(1, 1, 1),
-  new THREE.MeshStandardMaterial({
-    color: 0xff0000,
-    opacity: 0.5,
-    transparent: true,
-  }),
-);
-expectedBlock.position.set(0, 0.5, 0);
-world.add(expectedBlock);
-
-/**
  * HISTORY
  */
 const history = new ActionHistory();
 
+/**
+ * BLOCK
+ */
 type BlockType = THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>;
+const blockTexture = new THREE.TextureLoader().load(
+  "assets/textures/Stylized_Bricks_004/Stylized_Bricks_004_basecolor.png",
+);
+const blockMaterial = new THREE.MeshStandardMaterial({ map: blockTexture });
 let selectedBlock: BlockType | undefined;
+const expectedBlock = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), blockMaterial.clone());
+expectedBlock.material.transparent = true;
+expectedBlock.material.opacity = 0.5;
+expectedBlock.position.set(0, 0.5, 0);
+world.add(expectedBlock);
 
 function unselectBlock() {
   if (selectedBlock === undefined) return;
-  selectedBlock.material.color.set(0x00ff00);
   selectedBlock = undefined;
   transformControls.detach();
   transformControls.visible = false;
@@ -168,7 +172,6 @@ function unselectBlock() {
 }
 
 function selectBlock(block: BlockType) {
-  block.material.color.set(0x0000ff);
   selectedBlock = block;
   transformControls.attach(block);
   transformControls.visible = true;
@@ -238,9 +241,7 @@ mainView.addEventListener("click", (e) => {
 
 function handleSpacebar() {
   if (!expectedBlock.visible) return;
-  const newBlock = new TracedObject(
-    new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x00ff00 })),
-  );
+  const newBlock = new TracedObject(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), blockMaterial));
   newBlock.object.position.copy(expectedBlock.position);
   newBlock.object.name = `block-${newBlock.uuid}`;
 
@@ -334,6 +335,8 @@ requestAnimationFrame(function animate(time) {
  * GUI
  */
 const gui = new dat.GUI();
+let selectedBlockFolder: dat.GUI;
+
 const helperFolder = gui.addFolder("Helpers");
 helperFolder.add(cameraHelper, "visible").name("Camera");
 helperFolder.add(axesHelper, "visible").name("Axes");
@@ -349,4 +352,24 @@ const helpTextManager = {
 };
 helperFolder.add(helpTextManager, "visible").name("Help Text");
 
-let selectedBlockFolder: dat.GUI;
+let sunLightHelperVisibleCache = sunLightHelper.visible;
+const sunLightHelperController = helperFolder
+  .add(sunLightHelper, "visible")
+  .name("Sun Light")
+  .onChange((v: boolean) => {
+    sunLightHelperVisibleCache = v;
+  });
+
+const sunLightFolder = gui.addFolder("Sun Light");
+sunLightFolder.add(sunLight, "visible").onChange((v: boolean) => {
+  if (v) {
+    sunLightHelperController.enable();
+    sunLightHelper.visible = sunLightHelperVisibleCache;
+  } else {
+    sunLightHelperController.disable();
+    sunLightHelper.visible = false;
+  }
+});
+sunLightFolder.add(sunLight, "intensity", 0, 1, 0.1);
+sunLightFolder.add(sunLight.position, "x", -10, 10, 1).onChange(() => sunLight.lookAt(centerOfScene));
+sunLightFolder.add(sunLight.position, "z", -10, 10, 1).onChange(() => sunLight.lookAt(centerOfScene));
