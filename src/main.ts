@@ -82,7 +82,6 @@ transformControls.addEventListener("dragging-changed", ({ value }) => {
  */
 const sunLight = new THREE.DirectionalLight(0xffffff, 1);
 sunLight.position.set(13, 10, 0).add(centerOfScene);
-sunLight.localToWorld;
 sunLight.lookAt(centerOfScene);
 sunLight.target.position.copy(centerOfScene);
 world.add(sunLight);
@@ -93,7 +92,7 @@ world.add(ambientLight);
 /**
  * SUN LIGHT HELPER
  */
-const sunLightHelper = new THREE.DirectionalLightHelper(sunLight, 10, 0xffff00);
+const sunLightHelper = new THREE.DirectionalLightHelper(sunLight, 1, 0xffff00);
 world.add(sunLightHelper);
 
 /**
@@ -378,5 +377,9 @@ sunLightFolder.add({ angle: 0 }, "angle", 0, 360, 1).onChange((theta: number) =>
   const x = Math.cos((theta * Math.PI) / 180) * 13;
   const z = Math.sin((theta * Math.PI) / 180) * 13;
   sunLight.position.set(x, 10, z).add(centerOfScene);
-  sunLight.lookAt(centerOfScene);
+  sunLightHelper.update();
 });
+sunLightFolder
+  .add(sunLight.position, "y", 0, 20, 0.5)
+  .name("Height")
+  .onChange(() => sunLightHelper.update());
