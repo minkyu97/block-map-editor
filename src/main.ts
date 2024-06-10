@@ -1,9 +1,10 @@
-import * as dat from "lil-gui";
 import * as THREE from "three";
 import { OrbitControls, TransformControls } from "three/examples/jsm/Addons.js";
 import { ActionHistory } from "./utils/ActionHistory";
 import { KeyMap, Modifiers } from "./utils/KeyMap";
 import { TracedObject } from "./utils/TracedObject";
+import * as dat from "./utils/gui";
+import { resizeImage } from "./utils/imageUtils";
 import { OrthographicView, PerspectiveView } from "./view/View";
 import { World } from "./world/World";
 
@@ -56,9 +57,6 @@ const orbitControls = new OrbitControls(mainView.camera, renderer.domElement);
 orbitControls.target.copy(centerOfScene);
 orbitControls.update();
 const transformControls = new TransformControls(mainView.camera, renderer.domElement);
-transformControls.addEventListener("pointStart-changed", (e) => {
-  console.log(e);
-});
 transformControls.getRaycaster().layers.set(1);
 transformControls.traverse((child) => child.layers.set(1));
 world.add(transformControls);
@@ -149,12 +147,20 @@ grid.bind(world);
 const history = new ActionHistory();
 
 /**
+ * LOADERS
+ */
+const textureLoader = new THREE.TextureLoader();
+const imageLoader = new THREE.ImageLoader();
+
+/**
  * BLOCK
  */
 type BlockType = THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>;
-const blockTexture = new THREE.TextureLoader().load(
-  new URL("/assets/textures/Stylized_Bricks_004/Stylized_Bricks_004_basecolor.png", import.meta.url).toString(),
-);
+const defaultBlockTextureUrl = new URL(
+  "/assets/textures/Stylized_Bricks_004/Stylized_Bricks_004_basecolor.png",
+  import.meta.url,
+).toString();
+const blockTexture = textureLoader.load(defaultBlockTextureUrl);
 const blockMaterial = new THREE.MeshStandardMaterial({ map: blockTexture });
 let selectedBlock: BlockType | undefined;
 const expectedBlock = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), blockMaterial.clone());
@@ -434,3 +440,15 @@ sunLightFolder
   .add(sunLight.position, "y", 0, 20, 0.5)
   .name("Height")
   .onChange(() => sunLightHelper.update());
+
+const blockFolder = gui.addFolder("Block");
+const blockImageController = blockFolder
+  .addImage({ image: defaultBlockTextureUrl }, "image")
+  .onChange((url: string) => {
+    imageLoader.load(url, (image) => {
+      blockTexture.image = resizeImage(image);
+      blockTexture.generateMipmaps;
+      blockTexture.needsUpdate = true;
+    });
+  });
+blockFolder.add({ reset: () => blockImageController.setValue(defaultBlockTextureUrl) }, "reset").name("Reset Image");
