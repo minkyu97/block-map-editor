@@ -1,5 +1,5 @@
 import { Intersection, Object3D, Raycaster, Scene } from "three";
-import { TracedObject } from "../utils/TracedObject";
+import { TracedObject } from "../view/TracedObject";
 
 export class World {
   scene: Scene;
@@ -23,7 +23,7 @@ export class World {
     this.scene.add(object);
   }
 
-  removeTracedObject(object: TracedObject): void {
+  remove(object: TracedObject): void {
     const index = this.tracedObjects.indexOf(object);
     if (index !== -1) this.tracedObjects.splice(index, 1);
     object.removeFromParent();

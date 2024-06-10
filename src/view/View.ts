@@ -9,9 +9,9 @@ import {
   Vector2,
   Vector3,
 } from "three";
-import { TPointer, TPointerEventMap } from "../utils/TPointer";
-import { TracedObject } from "../utils/TracedObject";
 import { World } from "../world/World";
+import { TPointer, TPointerEventMap } from "./TPointer";
+import { TracedObject } from "./TracedObject";
 
 type ViewPort = { x: number; y: number; width: number; height: number };
 

@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { TPointerEventMap } from "../view/TPointer";
 import { World } from "../world/World";
+import { TPointerEventMap } from "./TPointer";
 
 type TracedObjectEventMap = THREE.Object3DEventMap & TPointerEventMap;
 

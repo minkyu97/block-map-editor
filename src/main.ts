@@ -1,10 +1,10 @@
 import * as THREE from "three";
 import { OrbitControls, TransformControls } from "three/examples/jsm/Addons.js";
-import { ActionHistory } from "./utils/ActionHistory";
-import { KeyMap, Modifiers } from "./utils/KeyMap";
-import { TracedObject } from "./utils/TracedObject";
+import { ActionHistory } from "./lib/ActionHistory";
+import { KeyMap, Modifiers } from "./lib/KeyMap";
 import * as dat from "./utils/gui";
 import { resizeImage } from "./utils/imageUtils";
+import { TracedObject } from "./view/TracedObject";
 import { OrthographicView, PerspectiveView } from "./view/View";
 import { World } from "./world/World";
 
