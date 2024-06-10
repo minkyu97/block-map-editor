@@ -56,4 +56,9 @@ export class ActionHistory {
     action.invoke();
     this.invokedActions.push(action);
   }
+
+  clear() {
+    this.invokedActions.splice(0);
+    this.revokedActions.splice(0);
+  }
 }

@@ -489,6 +489,10 @@ function loadFromLocalStorage() {
 }
 
 function resetMap() {
+  const confirmed = confirm("정말 맵을 초기화 하시겠습니까? 이 동작은 되돌릴 수 없습니다.");
+  if (!confirmed) return;
+
+  history.clear();
   world.tracedObjects
     .filter((o) => o.object.name.startsWith("block"))
     .forEach((o) => {
