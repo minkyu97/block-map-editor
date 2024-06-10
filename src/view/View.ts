@@ -1,19 +1,9 @@
-import {
-  BaseEvent,
-  Camera,
-  EventDispatcher,
-  Intersection,
-  OrthographicCamera,
-  PerspectiveCamera,
-  Raycaster,
-  Vector2,
-  Vector3,
-} from "three";
+import { BaseEvent, Camera, EventDispatcher, Intersection, Raycaster, Vector2, Vector3 } from "three";
+import { TPointer, TPointerEventMap } from "../lib/TPointer";
+import { TracedObject } from "../lib/TracedObject";
 import { World } from "../world/World";
-import { TPointer, TPointerEventMap } from "./TPointer";
-import { TracedObject } from "./TracedObject";
 
-type ViewPort = { x: number; y: number; width: number; height: number };
+export type ViewPort = { x: number; y: number; width: number; height: number };
 
 type ViewEventMap = {
   resize: { width: number; height: number };
@@ -162,57 +152,5 @@ export abstract class View extends EventDispatcher<ViewEventMap> {
   private updateRaycaster(): void {
     const pointer = new Vector2(this.pointer.x, this.pointer.y);
     this.raycaster.setFromCamera(pointer, this.camera);
-  }
-}
-
-type PerspectiveCameraOptions = {
-  fov?: number;
-  near?: number;
-  far?: number;
-};
-
-export class PerspectiveView extends View {
-  readonly camera: PerspectiveCamera;
-
-  constructor(world: World, viewport: ViewPort, { fov = 75, near = 0.1, far = 1000 }: PerspectiveCameraOptions = {}) {
-    super(world, viewport);
-    const aspect = this.realViewport.width / this.realViewport.height;
-    this.camera = new PerspectiveCamera(fov, aspect, near, far);
-  }
-
-  updateCameraAspect(): void {
-    this.camera.aspect = this.realViewport.width / this.realViewport.height;
-    this.camera.updateProjectionMatrix();
-  }
-}
-
-type OrthographicCameraOptions = {
-  near?: number;
-  far?: number;
-  height?: number;
-};
-
-export class OrthographicView extends View {
-  readonly camera: OrthographicCamera;
-  readonly height: number;
-
-  constructor(
-    world: World,
-    viewport: ViewPort,
-    { near = 0.1, far = 1000, height = 2 }: OrthographicCameraOptions = {},
-  ) {
-    super(world, viewport);
-    this.height = height;
-    const aspect = this.realViewport.width / this.realViewport.height;
-    this.camera = new OrthographicCamera(-height * aspect, height * aspect, height, -height, near, far);
-  }
-
-  updateCameraAspect(): void {
-    const aspect = this.realViewport.width / this.realViewport.height;
-    this.camera.left = -this.height * aspect;
-    this.camera.right = this.height * aspect;
-    this.camera.top = this.height;
-    this.camera.bottom = -this.height;
-    this.camera.updateProjectionMatrix();
   }
 }

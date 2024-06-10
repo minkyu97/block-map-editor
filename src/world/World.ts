@@ -1,5 +1,5 @@
 import { Intersection, Object3D, Raycaster, Scene } from "three";
-import { TracedObject } from "../view/TracedObject";
+import { TracedObject } from "../lib/TracedObject";
 
 export class World {
   scene: Scene;
