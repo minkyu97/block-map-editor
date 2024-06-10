@@ -211,9 +211,11 @@ function handleRightClick(object: TracedObject) {
         }
         object.unbind();
         object.removeFromParent();
+        saveToLocalStorage();
       },
       () => {
         object.bind(world);
+        saveToLocalStorage();
       },
     );
   }
@@ -256,6 +258,7 @@ function handleSpacebar() {
   history.do(
     () => {
       newBlock.bind(world);
+      saveToLocalStorage();
     },
     () => {
       if (selectedBlock === newBlock.object) {
@@ -263,6 +266,7 @@ function handleSpacebar() {
       }
       newBlock.unbind();
       newBlock.removeFromParent();
+      saveToLocalStorage();
     },
   );
 }
@@ -303,6 +307,7 @@ keyMap.bind(Modifiers.NONE, "Period", () => shiftSelectedBlock(new THREE.Vector3
  */
 let previousSelectedBlockPosition: THREE.Vector3 | undefined;
 
+loadFromLocalStorage();
 requestAnimationFrame(function animate(time) {
   requestAnimationFrame(animate);
 
@@ -452,3 +457,32 @@ const blockImageController = blockFolder
     });
   });
 blockFolder.add({ reset: () => blockImageController.setValue(defaultBlockTextureUrl) }, "reset").name("Reset Image");
+
+function saveToLocalStorage() {
+  const data = world.tracedObjects
+    .filter((o) => o.object.name.startsWith("block"))
+    .map((o) => {
+      return {
+        name: o.object.name,
+        position: o.object.position.toArray(),
+      };
+    });
+  const dataString = JSON.stringify(data);
+  localStorage.setItem("block-map-data", dataString);
+}
+
+function loadFromLocalStorage() {
+  const dataString = localStorage.getItem("block-map-data");
+  if (!dataString) return;
+  const data = JSON.parse(dataString);
+  try {
+    data.forEach((block: { name: string; position: number[] }) => {
+      const newBlock = new TracedObject(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), blockMaterial));
+      newBlock.object.position.fromArray(block.position);
+      newBlock.object.name = block.name;
+      newBlock.bind(world);
+    });
+  } catch (e) {
+    console.error(e);
+  }
+}
