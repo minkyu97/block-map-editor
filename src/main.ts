@@ -350,10 +350,10 @@ requestAnimationFrame(function animate(time) {
 const gui = new dat.GUI();
 let selectedBlockFolder: dat.GUI;
 
-const dataFolder = gui.addFolder("Data");
+const mapFolder = gui.addFolder("Map");
 const fileDownloadElement = document.createElement("a");
 fileDownloadElement.download = "block-map-data.json";
-dataFolder.add(
+mapFolder.add(
   {
     Save: () => {
       const data = world.tracedObjects
@@ -392,7 +392,7 @@ fileUploadElement.addEventListener("change", (e) => {
   };
   reader.readAsText(file);
 });
-dataFolder.add(
+mapFolder.add(
   {
     Load: () => {
       fileUploadElement.click();
@@ -400,6 +400,7 @@ dataFolder.add(
   },
   "Load",
 );
+mapFolder.add({ Reset: resetMap }, "Reset");
 
 const helperFolder = gui.addFolder("Helpers");
 helperFolder.add(cameraHelper, "visible").name("Camera");
@@ -485,4 +486,14 @@ function loadFromLocalStorage() {
   } catch (e) {
     console.error(e);
   }
+}
+
+function resetMap() {
+  world.tracedObjects
+    .filter((o) => o.object.name.startsWith("block"))
+    .forEach((o) => {
+      o.unbind();
+      o.removeFromParent();
+    });
+  saveToLocalStorage();
 }
