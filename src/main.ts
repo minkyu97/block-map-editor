@@ -94,6 +94,7 @@ transformControls.addEventListener("dragging-changed", ({ value }) => {
           targetBlock.position.copy(previousPosition);
           saveToLocalStorage();
         },
+        `블록 이동 (${previousPosition.toArray()}) → (${currentPosition.toArray()})`,
         true,
       ),
     );
@@ -243,6 +244,7 @@ function handleRightClick(object: TracedObject) {
           object.bind(world);
           saveToLocalStorage();
         },
+        `블록 삭제 (${object.object.position.toArray()})`,
       ),
     );
   }
@@ -296,14 +298,16 @@ function handleSpacebar() {
         newBlock.removeFromParent();
         saveToLocalStorage();
       },
+      `블록 생성 (${newBlock.object.position.toArray()})`,
     ),
   );
 }
 
 function shiftSelectedBlock(offset: THREE.Vector3) {
   if (selectedBlock === undefined) return;
-  const prevPosition = selectedBlock.position.clone();
-  const newPosition = selectedBlock.position.clone().add(offset);
+  const targetBlock = selectedBlock;
+  const prevPosition = targetBlock.position.clone();
+  const newPosition = targetBlock.position.clone().add(offset);
 
   // check there is no block in the new position
   const overlap = world.tracedObjects.some((o) => {
@@ -313,11 +317,14 @@ function shiftSelectedBlock(offset: THREE.Vector3) {
   history.push(
     new Action(
       () => {
-        selectedBlock!.position.copy(newPosition);
+        targetBlock.position.copy(newPosition);
+        saveToLocalStorage();
       },
       () => {
-        selectedBlock!.position.copy(prevPosition);
+        targetBlock.position.copy(prevPosition);
+        saveToLocalStorage();
       },
+      `블록 이동 (${prevPosition.toArray()}) → (${newPosition.toArray()})`,
     ),
   );
 }
@@ -432,6 +439,21 @@ mapFolder.add(
   "Load",
 );
 mapFolder.add({ Reset: resetMap }, "Reset");
+
+const historyFolder = gui.addFolder("History");
+historyFolder.add(history, "undo").name("Undo");
+historyFolder.add(history, "redo").name("Redo");
+const historyController = historyFolder
+  .add({ current: "" }, "current")
+  .options(history.actions.map((a, i) => a.description + i))
+  .onChange((value: string) => {
+    const index = parseInt(value.split(":")[0] ?? "0");
+    history.moveCursor(index);
+  });
+history.addEventListener("change", () => {
+  historyController.options(history.actions.map((a, i) => `${i}: ${a.description}`));
+  historyController.setValue(history.lastAction ? `${history.index}: ` + history.lastAction.description : "");
+});
 
 const helperFolder = gui.addFolder("Helpers");
 helperFolder.add(cameraHelper, "visible").name("Camera");
