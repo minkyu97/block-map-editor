@@ -83,6 +83,7 @@ transformControls.addEventListener("dragging-changed", ({ value }) => {
     const targetBlock = transformControls.object!;
     const previousPosition = dragStartPosition.clone();
     const currentPosition = targetBlock.position.clone();
+    if (previousPosition.equals(currentPosition)) return;
     saveToLocalStorage();
     history.push(
       new Action(
