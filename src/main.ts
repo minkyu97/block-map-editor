@@ -395,14 +395,7 @@ fileDownloadElement.download = "block-map-data.json";
 mapFolder.add(
   {
     Save: () => {
-      const data = world.tracedObjects
-        .filter((o) => o.object.name.startsWith("block"))
-        .map((o) => {
-          return {
-            name: o.object.name,
-            position: o.object.position.toArray(),
-          };
-        });
+      const data = save();
       const dataString = JSON.stringify(data);
       const blob = new Blob([dataString], { type: "application/json" });
       const url = URL.createObjectURL(blob);
@@ -422,12 +415,7 @@ fileUploadElement.addEventListener("change", (e) => {
   const reader = new FileReader();
   reader.onload = (e) => {
     const data = JSON.parse(e.target?.result as string);
-    data.forEach((block: { name: string; position: number[] }) => {
-      const newBlock = new TracedObject(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), blockMaterial));
-      newBlock.object.position.fromArray(block.position);
-      newBlock.object.name = block.name;
-      newBlock.bind(world);
-    });
+    load(data);
   };
   reader.readAsText(file);
 });
@@ -513,7 +501,7 @@ const blockImageController = blockFolder
   });
 blockFolder.add({ reset: () => blockImageController.setValue(defaultBlockTextureUrl) }, "reset").name("Reset Image");
 
-function saveToLocalStorage() {
+function save() {
   const data = world.tracedObjects
     .filter((o) => o.object.name.startsWith("block"))
     .map((o) => {
@@ -522,14 +510,10 @@ function saveToLocalStorage() {
         position: o.object.position.toArray(),
       };
     });
-  const dataString = JSON.stringify(data);
-  localStorage.setItem("block-map-data", dataString);
+  return data;
 }
 
-function loadFromLocalStorage() {
-  const dataString = localStorage.getItem("block-map-data");
-  if (!dataString) return;
-  const data = JSON.parse(dataString);
+function load(data: { name: string; position: number[] }[]) {
   try {
     data.forEach((block: { name: string; position: number[] }) => {
       const newBlock = new TracedObject(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), blockMaterial));
@@ -540,6 +524,19 @@ function loadFromLocalStorage() {
   } catch (e) {
     console.error(e);
   }
+}
+
+function saveToLocalStorage() {
+  const data = save();
+  const dataString = JSON.stringify(data);
+  localStorage.setItem("block-map-data", dataString);
+}
+
+function loadFromLocalStorage() {
+  const dataString = localStorage.getItem("block-map-data");
+  if (!dataString) return;
+  const data = JSON.parse(dataString);
+  load(data);
 }
 
 function resetMap() {
