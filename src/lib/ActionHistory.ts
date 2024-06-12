@@ -3,8 +3,8 @@ export class Action {
   private _invoke: () => void;
   private _revoke: () => void;
 
-  constructor(invoke: () => void, revoke: () => void) {
-    this.isExecuted = false;
+  constructor(invoke: () => void, revoke: () => void, isExecuted = false) {
+    this.isExecuted = isExecuted;
     this._invoke = invoke;
     this._revoke = revoke;
   }
@@ -33,9 +33,8 @@ export class ActionHistory {
     this.revokedActions = [];
   }
 
-  do(invoke: () => void, revoke: () => void) {
-    const action = new Action(invoke, revoke);
-    action.invoke();
+  push(action: Action) {
+    if (!action.isExecuted) action.invoke();
     this.invokedActions.push(action);
     if (this.invokedActions.length > this.maxHistory) {
       this.invokedActions.shift();

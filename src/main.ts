@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls, TransformControls } from "three/examples/jsm/Addons.js";
-import { ActionHistory } from "./lib/ActionHistory";
+import { Action, ActionHistory } from "./lib/ActionHistory";
 import { KeyMap, Modifiers } from "./lib/KeyMap";
 import { TracedObject } from "./lib/TracedObject";
 import * as dat from "./utils/gui";
@@ -70,9 +70,34 @@ transformControls._getPointer = function (event) {
 }.bind(transformControls);
 transformControls.setMode("translate");
 transformControls.setTranslationSnap(1);
+
+const dragStartPosition = new THREE.Vector3();
 transformControls.addEventListener("dragging-changed", ({ value }) => {
-  if (value) orbitControls.enabled = false;
-  else orbitControls.enabled = true;
+  if (value) {
+    // Drag 시작
+    orbitControls.enabled = false;
+    dragStartPosition.copy(transformControls.object!.position);
+  } else {
+    // Drag 끝
+    orbitControls.enabled = true;
+    const targetBlock = transformControls.object!;
+    const previousPosition = dragStartPosition.clone();
+    const currentPosition = targetBlock.position.clone();
+    saveToLocalStorage();
+    history.push(
+      new Action(
+        () => {
+          targetBlock.position.copy(currentPosition);
+          saveToLocalStorage();
+        },
+        () => {
+          targetBlock.position.copy(previousPosition);
+          saveToLocalStorage();
+        },
+        true,
+      ),
+    );
+  }
 });
 
 /**
@@ -204,19 +229,21 @@ function handleClick(object: BlockType) {
 
 function handleRightClick(object: TracedObject) {
   if (object && object.object.name.startsWith("block")) {
-    history.do(
-      () => {
-        if (selectedBlock === object.object) {
-          unselectBlock();
-        }
-        object.unbind();
-        object.removeFromParent();
-        saveToLocalStorage();
-      },
-      () => {
-        object.bind(world);
-        saveToLocalStorage();
-      },
+    history.push(
+      new Action(
+        () => {
+          if (selectedBlock === object.object) {
+            unselectBlock();
+          }
+          object.unbind();
+          object.removeFromParent();
+          saveToLocalStorage();
+        },
+        () => {
+          object.bind(world);
+          saveToLocalStorage();
+        },
+      ),
     );
   }
 }
@@ -255,19 +282,21 @@ function handleSpacebar() {
   newBlock.object.position.copy(expectedBlock.position);
   newBlock.object.name = `block-${newBlock.uuid}`;
 
-  history.do(
-    () => {
-      newBlock.bind(world);
-      saveToLocalStorage();
-    },
-    () => {
-      if (selectedBlock === newBlock.object) {
-        unselectBlock();
-      }
-      newBlock.unbind();
-      newBlock.removeFromParent();
-      saveToLocalStorage();
-    },
+  history.push(
+    new Action(
+      () => {
+        newBlock.bind(world);
+        saveToLocalStorage();
+      },
+      () => {
+        if (selectedBlock === newBlock.object) {
+          unselectBlock();
+        }
+        newBlock.unbind();
+        newBlock.removeFromParent();
+        saveToLocalStorage();
+      },
+    ),
   );
 }
 
@@ -281,13 +310,15 @@ function shiftSelectedBlock(offset: THREE.Vector3) {
     return o.object.position.equals(newPosition) && o.object.name.startsWith("block");
   });
   if (overlap) return;
-  history.do(
-    () => {
-      selectedBlock!.position.copy(newPosition);
-    },
-    () => {
-      selectedBlock!.position.copy(prevPosition);
-    },
+  history.push(
+    new Action(
+      () => {
+        selectedBlock!.position.copy(newPosition);
+      },
+      () => {
+        selectedBlock!.position.copy(prevPosition);
+      },
+    ),
   );
 }
 
@@ -324,7 +355,7 @@ requestAnimationFrame(function animate(time) {
   previousSelectedBlockPosition = selectedBlock?.position.clone();
 
   mainView.updateIntersections();
-  const intersect = mainView.intersections[0];
+  const intersect = mainView.intersection;
 
   if (intersect) {
     expectedBlock.position.copy(intersect.object.position);

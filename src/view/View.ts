@@ -15,7 +15,7 @@ export abstract class View extends EventDispatcher<ViewEventMap> {
   readonly realViewport: ViewPort;
   readonly pointer: TPointer;
   readonly raycaster: Raycaster;
-  intersections: Intersection<TracedObject>[];
+  private intersections: Intersection<TracedObject>[];
   private lastDownObjects: Set<TracedObject>;
   abstract readonly camera: Camera;
 
@@ -25,6 +25,10 @@ export abstract class View extends EventDispatcher<ViewEventMap> {
 
   get layers() {
     return this.camera.layers;
+  }
+
+  get intersection() {
+    return this.intersections[0];
   }
 
   constructor(world: World, viewport: ViewPort) {
@@ -83,7 +87,6 @@ export abstract class View extends EventDispatcher<ViewEventMap> {
     const mouseX = e.clientX;
     const mouseY = window.innerHeight - e.clientY;
     const { x, y, width, height } = this.realViewport;
-    if (mouseX < x || mouseX > x + width || mouseY < y || mouseY > y + height) return;
     this.pointer.x = ((mouseX - x) / width) * 2 - 1;
     this.pointer.y = ((mouseY - y) / height) * 2 - 1;
     const intersections = this.intersections;
