@@ -84,16 +84,13 @@ transformControls.addEventListener("dragging-changed", ({ value }) => {
     const previousPosition = dragStartPosition.clone();
     const currentPosition = targetBlock.position.clone();
     if (previousPosition.equals(currentPosition)) return;
-    saveToLocalStorage();
     history.push(
       new Action(
         () => {
           targetBlock.position.copy(currentPosition);
-          saveToLocalStorage();
         },
         () => {
           targetBlock.position.copy(previousPosition);
-          saveToLocalStorage();
         },
         `블록 이동 (${previousPosition.toArray()}) → (${currentPosition.toArray()})`,
         true,
@@ -239,11 +236,9 @@ function handleRightClick(object: TracedObject) {
           }
           object.unbind();
           object.removeFromParent();
-          saveToLocalStorage();
         },
         () => {
           object.bind(world);
-          saveToLocalStorage();
         },
         `블록 삭제 (${object.object.position.toArray()})`,
       ),
@@ -289,7 +284,6 @@ function handleSpacebar() {
     new Action(
       () => {
         newBlock.bind(world);
-        saveToLocalStorage();
       },
       () => {
         if (selectedBlock === newBlock.object) {
@@ -297,7 +291,6 @@ function handleSpacebar() {
         }
         newBlock.unbind();
         newBlock.removeFromParent();
-        saveToLocalStorage();
       },
       `블록 생성 (${newBlock.object.position.toArray()})`,
     ),
@@ -319,11 +312,9 @@ function shiftSelectedBlock(offset: THREE.Vector3) {
     new Action(
       () => {
         targetBlock.position.copy(newPosition);
-        saveToLocalStorage();
       },
       () => {
         targetBlock.position.copy(prevPosition);
-        saveToLocalStorage();
       },
       `블록 이동 (${prevPosition.toArray()}) → (${newPosition.toArray()})`,
     ),
@@ -340,6 +331,7 @@ keyMap.bind(Modifiers.NONE, "ArrowLeft", () => shiftSelectedBlock(new THREE.Vect
 keyMap.bind(Modifiers.NONE, "ArrowRight", () => shiftSelectedBlock(new THREE.Vector3(1, 0, 0)));
 keyMap.bind(Modifiers.NONE, "Comma", () => shiftSelectedBlock(new THREE.Vector3(0, 1, 0)));
 keyMap.bind(Modifiers.NONE, "Period", () => shiftSelectedBlock(new THREE.Vector3(0, -1, 0)));
+keyMap.bind(Modifiers.META, "KeyS", saveToLocalStorage);
 
 /**
  * ANIMATION
@@ -527,9 +519,22 @@ function load(data: { name: string; position: number[] }[]) {
 }
 
 function saveToLocalStorage() {
-  const data = save();
-  const dataString = JSON.stringify(data);
-  localStorage.setItem("block-map-data", dataString);
+  const savetext = document.getElementById("savetext")!;
+  savetext.innerHTML = "저장 중...";
+  savetext.classList.remove("hidden");
+  try {
+    const data = save();
+    const dataString = JSON.stringify(data);
+    localStorage.setItem("block-map-data", dataString);
+    savetext.innerHTML = "저장 완료";
+  } catch (e: any) {
+    console.error(e);
+    savetext.innerHTML = "저장 실패";
+  } finally {
+    setTimeout(() => {
+      savetext.classList.add("hidden");
+    }, 100);
+  }
 }
 
 function loadFromLocalStorage() {
